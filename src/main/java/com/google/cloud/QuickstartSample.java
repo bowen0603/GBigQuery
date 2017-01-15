@@ -47,6 +47,34 @@ public class QuickstartSample {
         this.bigquery = new BigQueryOptions.DefaultBigqueryFactory().create(BigQueryOptions.defaultInstance());
     }
 
+
+    /**
+     * * Logic of analysis:
+     * 1. group composition - purely based on the number of each types of members
+     * ** Done : identifyMembersInProjects()
+     * ************************************************************************************
+     * 2. member experience - based on editor's behaviors on the previous time interval
+     * key tables: (1) user-wp-tcount, (2) user-ns-edits history
+     * table (1): script_user_wp_active_range_revs45
+     * table (2): should be generated already, need to relocate those tables (revision tables)
+     *
+     *
+     * ************************************************************************************
+     * Key functions, tables, and operationalizations
+     * *** 1. (user, wp, active range) table
+     * A key table contains the information of editor's active period on each project.
+     * the time interval is calculated based on the initial setting of time range.
+     * Editor's active range on the project is estimated by the edits on ns 4 and 5 which is questionable still.
+     * todo: Might need better rational on this?
+     * table: script_user_wp_active_range_revs45
+     *
+     * *** 2. (wp, tcount) table
+     * table: script_user_wp_revs_45_valid_users_wps_valid_range
+     *
+     *
+     */
+
+
     public static void main(String... args) throws Exception {
         QuickstartSample self = new QuickstartSample();
 
@@ -56,24 +84,282 @@ public class QuickstartSample {
 //        self.createValidTimeRangeForProjects();
 
 
-        // Create longitudinal data for DVs
+        // Create longitudinal data for DVs todo: to run
         self.createLongitudinalDVs();
 
 
-        // Create longitudinal data for IVs
+        // Create longitudinal data for IVs todo: to run
+        self.identifyMembersInProjects();
+
+        // Merge the above variables generated into one table
+        self.mergeDVsAndMemberComposition();
+
+
 
 
         System.out.println("Done .. ");
     }
 
     /**
-     * Identify newcomers, leavers, and remaining members in the project.
-     * - create editor-wp-tcount table
+     * Compute high/low performance editors based on standard deviations
      */
-    private void identifyMembersInProjects() {
+    private void computeAdvancedMemberAttributes() throws Exception {
+
+        // todo newcomers - previous experience (# of projects participated before)
+        /*
+        SELECT t1.user_id AS user_id,
+       t2.nwikiproject AS nwikiproject,
+       t2.tcount AS tcount,
+       t1.article AS article,
+FROM [bowen_wikis_quitting.revs_ns0_encoded_valid_users] t1
+INNER JOIN [bowen_wikis_quitting.lng_ns45_user_wp_global_tcount_with_range_6months] t2
+ON t1.user_id = t2.user_id
+WHERE t1.timestamp < t2.interval_end_ts AND t1.timestamp > t2.interval_start_ts
+
+SELECT user_id,
+       nwikiproject,
+       tcount,
+       COUNT(*) AS aggr_productivity,
+FROM [bowen_wikis_quitting.lng_ns0_user_wp_article_edits_tcount_interval_6months]
+GROUP BY user_id, nwikiproject, tcount
+
+         */
+
+        // leaver productivity (project level) - three bins
+        // Have the edits grouped by users, wikiproject, time intervals
+        runQuery("SELECT t1.user_id AS user_id," +
+                        "t2.nwikiproject AS nwikiproject," +
+                        "t2.tcount AS tcount," +
+                        "t1.article AS article," +
+                        "FROM " + tableName("bowen_wikis_quitting", "revs_ns0_encoded_valid_users", "t1") +
+                        "INNER JOIN " + tableName(defaultDataset, "script_user_wp_active_range_revs45", "t2") +
+                        "ON t1.user_id = t2.user_id " +
+                        "WHERE t1.timestamp < t2.tcount_end_ts AND t1.timestamp > t2.tcount_start_ts",
+                TableId.of(defaultDataset, "script_ns0_user_wp_edits_records"+timeIntervalUnit));
+
+        runQuery("SELECT user_id," +
+                        "nwikiproject," +
+                        "tcount," +
+                        "COUNT(*) AS aggr_productivity," +
+                        "FROM " + tableName(defaultDataset, "script_ns0_user_wp_tcount_edits_records" + timeIntervalUnit) +
+                        "GROUP BY user_id, nwikiproject, tcount",
+                TableId.of(defaultDataset, "script_ns0_user_wp_tcount_aggr"+timeIntervalUnit));
+
+        // fill the missing tcounts
+        runQuery("SELECT t1.nwikiproject AS nwikiproject," +
+                        "t1.tcount AS tcount," +
+                        "IF (t2.nwikiproject IS NULL AND t2.tcount IS NULL, 0, t2.aggr_productivity) AS aggr_productivity," +
+                        "FROM " + tableName(defaultDataset, "script_user_wp_revs_45_valid_users_wps_valid_range"+timeIntervalUnit, "t1") +
+                        "LEFT JOIN " + tableName(defaultDataset, "script_ns0_user_wp_tcount_aggr"+timeIntervalUnit, "t2") +
+                        "ON t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.tcount " +
+                        "ORDER BY nwikiproject, tcount",
+                TableId.of(defaultDataset, "script_ns0_user_wp_tcount_aggr_full"+timeIntervalUnit));
+
+        // adding the time range on each editor for each project he involved
+        runQuery("SELECT t1.user_id AS user_id," +
+                        "t1.nwikiproject AS nwikiproject," +
+                        "t1.tcount AS tcount," +
+                        "t1.aggr_productivity AS aggr_productivity," +
+                        "t2.first_tcount AS first_tcount," +
+                        "t2.last_tcount AS last_tcount," +
+                        "t2.leaving_tcount AS leaving_tcount," +
+                        "FROM " + tableName(defaultDataset, "script_ns0_user_wp_tcount_aggr_full"+timeIntervalUnit, "t1") +
+                        "INNER JOIN " + tableName(defaultDataset, "script_user_wp_active_range_revs45"+timeIntervalUnit, "t2") +
+                        "ON t1.user_id = t2.user_id AND t1.nwikiproject = t2.nwikiproject " +
+                        "ORDER BY user_id, nwikiproject, tcount",
+                TableId.of(defaultDataset, "script_ns0_user_wp_tcount_aggr_full_with_range"+timeIntervalUnit));
+
+        //todo: to distinguish newcomers/leavers
+        // todo: use the value distribution of remaining members, then create three bins for leavers
+
+        // leaver coordination (project level) - three bins
+
+    }
+
+    private void mergeDVsAndMemberComposition() throws Exception {
+
+        // merge newcomers and leavers nbr
+        runQuery("SELECT t1.nwikiproject AS nwikiproject," +
+                        "t1.tcount AS tcount," +
+                        "t1.newcomers_nbr AS newcomers_nbr," +
+                        "t2.remainings_nbr AS remainings_nbr," +
+                        "FROM " + tableName(defaultDataset, "script_wp_newcomers_nbr_tcount_full" + timeIntervalUnit, "t1") +
+                        "INNER JOIN " + tableName(defaultDataset, "script_wp_remainings_nbr_tcount_full" + timeIntervalUnit, "t2") +
+                        "ON t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.tcount",
+                TableId.of(defaultDataset, "script_merging_newcomers_remainings"+timeIntervalUnit));
+
+        // merge with leavers nbr
+        runQuery("SELECT t1.nwikiproject AS nwikiproject," +
+                        "t1.tcount AS tcount," +
+                        "t1.newcomers_nbr AS newcomers_nbr," +
+                        "t1.remainings_nbr AS remainings_nbr," +
+                        "t2.leavers_nbr AS leavers_nbr," +
+                        "FROM " + tableName(defaultDataset, "script_merging_newcomers_remainings" + timeIntervalUnit, "t1") +
+                        "INNER JOIN " + tableName(defaultDataset, "script_wp_leavers_nbr_tcount_full" + timeIntervalUnit, "t2") +
+                        "ON t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.tcount",
+                TableId.of(defaultDataset, "script_merging_newcomers_remainings_leavers"+timeIntervalUnit));
+
+        // merge with dv prod
+        runQuery("SELECT t1.nwikiproject AS nwikiproject," +
+                        "t1.tcount AS tcount," +
+                        "t1.newcomers_nbr AS newcomers_nbr," +
+                        "t1.remainings_nbr AS remainings_nbr," +
+                        "t1.leavers_nbr AS leavers_nbr," +
+                        "t2.group_article_productivity AS group_article_productivity," +
+                        "FROM " + tableName(defaultDataset, "script_merging_newcomers_remainings_leavers" + timeIntervalUnit, "t1") +
+                        "INNER JOIN " + tableName(defaultDataset, "dv_wp_full_mbr_prod0_per_time_interval_months" + timeIntervalUnit, "t2") +
+                        "ON t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.tcount",
+                TableId.of(defaultDataset, "script_mbr_comp_dv_prod"+timeIntervalUnit));
+
+        // merge with dv coor
+        runQuery("SELECT t1.nwikiproject AS nwikiproject," +
+                        "t1.tcount AS tcount," +
+                        "t1.newcomers_nbr AS newcomers_nbr," +
+                        "t1.remainings_nbr AS remainings_nbr," +
+                        "t1.leavers_nbr AS leavers_nbr," +
+                        "t1.group_article_productivity AS group_article_productivity," +
+                        "t2.project_coors AS project_coors," +
+                        "FROM " + tableName(defaultDataset, "script_mbr_comp_dv_prod"+timeIntervalUnit, "t1") +
+                        "INNER JOIN " + tableName(defaultDataset, "dv_wp_full_coor45_per_time_interval_months" + timeIntervalUnit, "t2") +
+                        "ON t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.tcount",
+                TableId.of(defaultDataset, "script_mbr_comp_dv_prod_coors"+timeIntervalUnit));
+
+        // merge with dv art_comm
+        runQuery("SELECT t1.nwikiproject AS nwikiproject," +
+                        "t1.tcount AS tcount," +
+                        "t1.newcomers_nbr AS newcomers_nbr," +
+                        "t1.remainings_nbr AS remainings_nbr," +
+                        "t1.leavers_nbr AS leavers_nbr," +
+                        "t1.group_article_productivity AS group_article_productivity," +
+                        "t1.project_coors AS project_coors," +
+                        "t2.project_art_comm AS project_art_comm," +
+                        "FROM " + tableName(defaultDataset, "script_mbr_comp_dv_prod_coors"+timeIntervalUnit, "t1") +
+                        "INNER JOIN " + tableName(defaultDataset, "dv_wp_full_art_comm1_per_time_interval_months" + timeIntervalUnit, "t2") +
+                        "ON t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.tcount",
+                TableId.of(defaultDataset, "script_mbr_comp_dv_prod_coors_art_comm"+timeIntervalUnit));
+
+        // merge with dv user comm
+        runQuery("SELECT t1.nwikiproject AS nwikiproject," +
+                        "t1.tcount AS tcount," +
+                        "t1.newcomers_nbr AS newcomers_nbr," +
+                        "t1.remainings_nbr AS remainings_nbr," +
+                        "t1.leavers_nbr AS leavers_nbr," +
+                        "t1.group_article_productivity AS group_article_productivity," +
+                        "t1.project_coors AS project_coors," +
+                        "t1.project_art_comm AS project_art_comm," +
+                        "t2.project_user_comm AS project_user_comm," +
+                        "FROM " + tableName(defaultDataset, "script_mbr_comp_dv_prod_coors_art_comm"+timeIntervalUnit, "t1") +
+                        "INNER JOIN " + tableName(defaultDataset, "dv_wp_full_user_comm3_per_time_interval_months" + timeIntervalUnit, "t2") +
+                        "ON t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.tcount",
+                TableId.of(defaultDataset, "script_mbr_comp_dv_prod_coors_art_comm_user_comm"+timeIntervalUnit));
+    }
+
+    /**
+     * Identify the numbers of newcomers, leavers, and remaining members of each project in each time interval.
+     * - create editor-wp-tcount table
+     *
+     */
+    private void identifyMembersInProjects() throws Exception {
         // starting from table: (Find the first and last time interval for each editor on wikiprojects (6-month interval))
         // in file Queries and Tables
+
+        // Locate the first edit to a time interval of an editor to a project
+        runQuery("SELECT t1.user_id AS user_id," +
+                        "t1.nwikiproject AS nwikiproject," +
+                        "t1.first_edit AS first_edit," +
+                        "t2.tcount AS first_tcount," +
+                        "t1.last_edit AS last_edit," +
+                        "FROM " + tableName("bowen_wikis_quitting", "rev_ns45_user_wikiproject_ts_range_encoded", "t1") +
+                        "INNER JOIN " + tableName(defaultDataset, "script_user_wp_revs_45_valid_users_wps_valid_range" + timeIntervalUnit, "t2") +
+                        "ON t1.nwikiproject = t2.nwikiproject " +
+                        "WHERE t2.start_ts <= t1.first_edit AND t1.first_edit < t2.end_ts ",
+                TableId.of(defaultDataset, "script_user_wp_active_start_end_revs45_partial"+timeIntervalUnit));
+
+        // Locate the last edit for the editor on each project involved
+        runQuery("SELECT t1.user_id AS user_id," +
+                        "t1.nwikiproject AS nwikiproject," +
+                        "t1.first_edit AS first_edit," +
+                        "t1.first_tcount AS first_tcount," +
+                        "t1.last_edit AS last_edit," +
+                        "t2.tcount AS last_tcount," +
+                        "FROM " + tableName(defaultDataset, "script_user_wp_active_start_end_revs45_partial" + timeIntervalUnit, "t1") +
+                        "INNER JOIN " + tableName(defaultDataset, "script_user_wp_revs_45_valid_users_wps_valid_range" + timeIntervalUnit, "t2") +
+                        "ON t1.nwikiproject = t2.nwikiproject " +
+                        "WHERE t2.start_ts <= t1.last_edit AND t1.last_edit < t2.end_ts",
+                TableId.of(defaultDataset, "script_user_wp_active_start_end_revs45"+timeIntervalUnit));
+
+        // Create the entire active range of the editor on the project by filling the gaps
+        runQuery("SELECT t1.user_id AS user_id," +
+                        "t1.nwikiproject AS nwikiproject," +
+                        "t2.start_ts AS tcount_start_ts," +
+                        "t2.end_ts AS tcount_end_ts," +
+                        "t2.tcount AS tcount," +
+                        "t1.first_tcount AS first_tcount," +
+                        "t1.last_tcount AS last_tcount," +
+                        "(t1.last_tcount+1) AS leaving_tcount," +
+                        "FROM " + tableName(defaultDataset, "script_user_wp_active_start_end_revs45" + timeIntervalUnit, "t1") +
+                        "INNER JOIN " + tableName(defaultDataset, "script_user_wp_revs_45_valid_users_wps_valid_range" + timeIntervalUnit, "t2") +
+                        "ON t1.nwikiproject = t2.nwikiproject " +
+                        "WHERE t1.first_edit < t2.end_ts AND t1.last_edit > t2.start_ts " +
+                        "ORDER BY nwikiproject, user_id, tcount",
+                TableId.of(defaultDataset, "script_user_wp_active_range_revs45"+timeIntervalUnit));
+
+        // Compute newcomers for each project in each time interval
+        runQuery("SELECT nwikiproject," +
+                        "tcount," +
+                        "COUNT(UNIQUE(user_id)) AS newcomers_nbr," +
+                        "FROM " + tableName(defaultDataset, "script_user_wp_active_range_revs45" + timeIntervalUnit) +
+                        "WHERE tcount = first_tcount " +
+                        "GROUP BY nwikiproject, tcount",
+                TableId.of(defaultDataset, "script_wp_newcomers_nbr_tcount" + timeIntervalUnit));
+        // add in time intervals with no such members
+        // TODO: do not count the first and last time intervals - to remove (identify the value)
+        runQuery("SELECT t1.nwikiproject AS nwikiproject," +
+                "t1.tcount AS tcount," +
+                "IFNULL(t2.newcomers_nbr, 0) AS newcomers_nbr," +
+                "FROM " + tableName(defaultDataset, "script_user_wp_revs_45_valid_users_wps_valid_range" + timeIntervalUnit, "t1") +
+                "LEFT JOIN " + tableName(defaultDataset, "script_wp_newcomers_nbr_tcount" + timeIntervalUnit, "t2") +
+                "ON t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.tcount " +
+                "WHERE t1.tcount != 0", // TODO: check the value
+                TableId.of(defaultDataset, "script_wp_newcomers_nbr_tcount_full"+timeIntervalUnit));
+
+        // leavers
+        runQuery("SELECT nwikiproject," +
+                        "tcount+1 AS tcount," +
+                        "COUNT(UNIQUE(user_id)) AS leavers_nbr," +
+                        "FROM " + tableName(defaultDataset, "script_user_wp_active_range_revs45" + timeIntervalUnit) +
+                        "WHERE (tcount+1) = leaving_tcount " +
+                        "GROUP BY nwikiproject, tcount",
+                TableId.of(defaultDataset, "script_wp_leavers_nbr_tcount" + timeIntervalUnit));
+
+        runQuery("SELECT t1.nwikiproject AS nwikiproject," +
+                        "t1.tcount AS tcount," +
+                        "IFNULL(t2.leavers_nbr, 0) AS leavers_nbr," +
+                        "FROM " + tableName(defaultDataset, "script_user_wp_revs_45_valid_users_wps_valid_range" + timeIntervalUnit, "t1") +
+                        "LEFT JOIN " + tableName(defaultDataset, "script_wp_leavers_nbr_tcount" + timeIntervalUnit, "t2") +
+                        "ON t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.tcount " +
+                        "WHERE t1.tcount != 0", // TODO check the last time interval value
+                TableId.of(defaultDataset, "script_wp_leavers_nbr_tcount_full"+timeIntervalUnit));
+
+        // remaining members
+        runQuery("SELECT nwikiproject," +
+                        "tcount," +
+                        "COUNT(UNIQUE(user_id)) AS remainings_nbr," +
+                        "FROM " + tableName(defaultDataset, "script_user_wp_active_range_revs45" + timeIntervalUnit) +
+                        "WHERE tcount != first_tcount " +
+                        "GROUP BY nwikiproject, tcount",
+                TableId.of(defaultDataset, "script_wp_remainings_nbr_tcount"+timeIntervalUnit));
+
+        runQuery("SELECT t1.nwikiproject AS nwikiproject," +
+                        "t1.tcount AS tcount," +
+                        "IFNULL(t2.remainings_nbr, 0) AS remainings_nbr," +
+                        "FROM " + tableName(defaultDataset, "script_user_wp_revs_45_valid_users_wps_valid_range" + timeIntervalUnit, "t1") +
+                        "LEFT JOIN " + tableName(defaultDataset, "script_wp_remainings_nbr_tcount" + timeIntervalUnit, "t2") +
+                        "ON t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.tcount " +
+                        "WHERE t1.tcount != 0", // TODO check the last time interval value
+                TableId.of(defaultDataset, "script_wp_remainings_nbr_tcount_full"+timeIntervalUnit));
     }
+
 
     /**
      * Compute DVs in the each time interval for each wikiproject
@@ -91,7 +377,7 @@ public class QuickstartSample {
                 "GROUP BY nwikiproject, tcount",
                 TableId.of(defaultDataset, "dv_wp_coor45_per_time_interval_months"+timeIntervalUnit));
 
-        // fill the values for the missing time intervals
+        // fill the values for the missing time intervals todo: only time project level needed tcount, or users?
         runQuery("SELECT t1.nwikiproject AS nwikiproject," +
                 "t1.tcount AS tcount," +
                 "IF (t2.nwikiproject IS NULL AND t2.tcount IS NULL, 0, t2.project_coordination) AS project_coors," +
@@ -107,7 +393,7 @@ public class QuickstartSample {
                         "FROM " + tableName("bowen_wikis_quitting", "rev_ns0_member_project_edits", "t1") +
                         "INNER JOIN " + tableName(defaultDataset, "script_user_wp_revs_45_valid_users_wps_valid_range" + timeIntervalUnit, "t2") +
                         "ON t1.nwikiproject = t2.nwikiproject " +
-                        "WHERE t1.timestamp >= t2.start_ts AND t1.timestamp AS t2.end_ts " +
+                        "WHERE t1.timestamp >= t2.start_ts AND t1.timestamp < t2.end_ts " +
                         "GROUP BY nwikiproject, tcount " +
                         "ORDER BY nwikiproject, tcount",
                 TableId.of(defaultDataset, "dv_wp_mbr_prod0_per_time_interval_months" + timeIntervalUnit));
@@ -115,7 +401,7 @@ public class QuickstartSample {
         // fill the values for the missing time intervals
         runQuery("SELECT t1.nwikiproject AS nwikiproject," +
                         "t1.tcount AS tcount," +
-                        "IF (t2.nwikiproject IS NULL AND t2.tcount IS NULL, 0, t2.group_article_productivity) AS project_prod," +
+                        "IF (t2.nwikiproject IS NULL AND t2.tcount IS NULL, 0, t2.group_article_productivity) AS group_article_productivity," +
                         "FROM " + tableName(defaultDataset, "script_user_wp_revs_45_valid_users_wps_valid_range"+timeIntervalUnit, "t1") +
                         "LEFT JOIN " + tableName(defaultDataset, "dv_wp_mbr_prod0_per_time_interval_months" + timeIntervalUnit, "t2") +
                         "ON t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.tcount " +
