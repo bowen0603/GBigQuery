@@ -84,17 +84,19 @@ public class QuickstartSample {
 //        self.createValidTimeRangeForProjects();
 
 
-        // Create longitudinal data for DVs todo: to run
-        self.createLongitudinalDVs();
+        // Create longitudinal data for DVs
+//        self.createLongitudinalDVs();
 
 
-        // Create longitudinal data for IVs todo: to run
-        self.identifyMembersInProjects();
+        // Create longitudinal data for IVs
+//        self.identifyMembersInProjects();
 
         // Merge the above variables generated into one table
-        self.mergeDVsAndMemberComposition();
+//        self.mergeDVsAndMemberComposition();
 
 
+        // Compute advanced member attributes
+        self.computeAdvancedMemberAttributes();
 
 
         System.out.println("Done .. ");
@@ -102,6 +104,8 @@ public class QuickstartSample {
 
     /**
      * Compute high/low performance editors based on standard deviations
+     * TODO: document details about IVs generations (what variable and how to generate) based on the existing query document
+     * TODO: check what was done, what variables are meaningful to generate (the meaning and rationale of having it)
      */
     private void computeAdvancedMemberAttributes() throws Exception {
 
