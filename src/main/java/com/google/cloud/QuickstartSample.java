@@ -110,24 +110,15 @@ public class QuickstartSample {
     private void computeAdvancedMemberAttributes() throws Exception {
 
         // todo newcomers - previous experience (# of projects participated before)
-        /*
-        SELECT t1.user_id AS user_id,
-       t2.nwikiproject AS nwikiproject,
-       t2.tcount AS tcount,
-       t1.article AS article,
-FROM [bowen_wikis_quitting.revs_ns0_encoded_valid_users] t1
-INNER JOIN [bowen_wikis_quitting.lng_ns45_user_wp_global_tcount_with_range_6months] t2
-ON t1.user_id = t2.user_id
-WHERE t1.timestamp < t2.interval_end_ts AND t1.timestamp > t2.interval_start_ts
-
-SELECT user_id,
-       nwikiproject,
-       tcount,
-       COUNT(*) AS aggr_productivity,
-FROM [bowen_wikis_quitting.lng_ns0_user_wp_article_edits_tcount_interval_6months]
-GROUP BY user_id, nwikiproject, tcount
-
+        /**
+         * Documenting highly productive leaver:
+         * For the current time interval t_i, find the productivity in the previous time interval t_(i-1),
+         * compute the mean of remainings, (include leavers who were remainings at that time)
+         * and the three bins. find out which bin the leavers belong to. But they are the leavers for t_i.
          */
+
+        // TODO: check out commands: Longitudinal IV - Productivity Leavers & pct of high productive leavers
+        // TODO: combine that with: Longitudinal IV - Three Bins for leavers
 
         // leaver productivity (project level) - three bins
         // Have the edits grouped by users, wikiproject, time intervals
@@ -174,6 +165,11 @@ GROUP BY user_id, nwikiproject, tcount
                 TableId.of(defaultDataset, "script_ns0_user_wp_tcount_aggr_full_with_range"+timeIntervalUnit));
 
         //todo: to distinguish newcomers/leavers
+
+        // todo: previous productivity, exclude newcomers for the remainings
+
+        // todo: check the code base to see how to deal with tcount alignments
+
         // todo: use the value distribution of remaining members, then create three bins for leavers
 
         // leaver coordination (project level) - three bins
@@ -251,9 +247,9 @@ GROUP BY user_id, nwikiproject, tcount
                         "t1.group_article_productivity AS group_article_productivity," +
                         "t1.project_coors AS project_coors," +
                         "t1.project_art_comm AS project_art_comm," +
-                        "t2.project_user_comm AS project_user_comm," +
+                        "IFNULL(t2.project_user_comm, 0) AS project_user_comm," + // user comm is missing some projects
                         "FROM " + tableName(defaultDataset, "script_mbr_comp_dv_prod_coors_art_comm"+timeIntervalUnit, "t1") +
-                        "INNER JOIN " + tableName(defaultDataset, "dv_wp_full_user_comm3_per_time_interval_months" + timeIntervalUnit, "t2") +
+                        "LEFT JOIN " + tableName(defaultDataset, "dv_wp_full_user_comm3_per_time_interval_months" + timeIntervalUnit, "t2") +
                         "ON t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.tcount",
                 TableId.of(defaultDataset, "script_mbr_comp_dv_prod_coors_art_comm_user_comm"+timeIntervalUnit));
     }
@@ -367,6 +363,8 @@ GROUP BY user_id, nwikiproject, tcount
 
     /**
      * Compute DVs in the each time interval for each wikiproject
+     * DVs are only from valid members and valid wikiprojects
+     * TODO: why user comm is high? Editors are still talking even they are no longer involved in the project.
      */
     private void createLongitudinalDVs() throws Exception {
 
@@ -436,11 +434,22 @@ GROUP BY user_id, nwikiproject, tcount
                         "ORDER BY nwikiproject, tcount",
                 TableId.of(defaultDataset, "dv_wp_full_art_comm1_per_time_interval_months"+timeIntervalUnit));
 
-        // DV: user communication
+        // DV: user communication (using previous generated table)
+        // append nwikiproject to wikiproject
+        runQuery("SELECT t2.nwikiproject AS nwikiproject," +
+                        "t2.wikiproject AS wikiproject," +
+                        "t1.user_talk_from AS user_talk_from," +
+                        "t1.former_member AS former_member," +
+                        "t1.timestamp AS timestamp," +
+                        "FROM " + tableName("bowen_user_dropouts", "user_talks_to_former_wikiprojects_members", "t1") +
+                        "INNER JOIN " + tableName("bowen_editor_attachments", "wikiprojects_valid_withIds_3members", "t2") +
+                        "ON t1.wikiproject = t2.wikiproject",
+                TableId.of(defaultDataset, "script_valid_user_comm_records_encoded"));
+
         runQuery("SELECT t1.nwikiproject AS nwikiproject," +
                         "t2.tcount AS tcount," +
                         "COUNT(*) AS user_comm," +
-                        "FROM " + tableName("bowen_wikis_quitting", "lng_member_wp_talk_page_edits_ts_6months", "t1") +
+                        "FROM " + tableName(defaultDataset, "script_valid_user_comm_records_encoded", "t1") +
                         "INNER JOIN " + tableName(defaultDataset, "script_user_wp_revs_45_valid_users_wps_valid_range" + timeIntervalUnit, "t2") +
                         "ON t1.nwikiproject = t2.nwikiproject " +
                         "WHERE t1.timestamp >= t2.start_ts AND t1.timestamp < t2.end_ts " +
