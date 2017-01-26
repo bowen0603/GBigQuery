@@ -14,6 +14,7 @@ import com.google.cloud.bigquery.*;
 import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.TableId;
 import com.sun.xml.internal.xsom.impl.scd.Iterators;
+import javafx.scene.control.Tab;
 
 /**
  * Key steps to set up:
@@ -104,9 +105,9 @@ public class QuickstartSample {
     }
 
     private void computeAdvancedMemberAttributes() throws Exception {
-        computeRemainingMemberProjectPerformance();
-//        createThreeBinsForEachProjectTcount();
+//        distinguishProjectLeaverAttributes();
 //        computeHighLowPerformanceMembers();
+        mergeProjectLeaverAttributes();
     }
 
     private void computeHighLowPerformanceMembers() throws Exception {
@@ -118,13 +119,69 @@ public class QuickstartSample {
 
     }
 
+    private void mergeProjectLeaverAttributes() throws Exception {
+        //TableId.of(defaultDataset, "script_ns0_stdev_bins_high_prod_leavers_nbrs_full" + timeIntervalUnit));
+        //TableId.of(defaultDataset, "script_ns0_stdev_bins_low_prod_leavers_nbrs_full" + timeIntervalUnit));
+
+        // merge high/low productive leavers
+        runQuery("SELECT t1.nwikiproject AS nwikiproject," +
+                        "t1.tcount AS tcount," +
+                        "t1.nbr_high_prod_leavers AS nbr_high_prod_leavers," +
+                        "t2.nbr_low_prod_leavers AS nbr_low_prod_leavers," +
+                        "FROM " + tableName(defaultDataset, "script_ns0_stdev_bins_high_prod_leavers_nbrs_full" + timeIntervalUnit, "t1") +
+                        "INNER JOIN " + tableName(defaultDataset, "script_ns0_stdev_bins_low_prod_leavers_nbrs_full" + timeIntervalUnit, "t2") +
+                        "ON t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.tcount",
+                TableId.of(defaultDataset, "script_merging_prod_high_low_nbrs" + timeIntervalUnit));
+
+        // merge high/low project coordination leavers
+        runQuery("SELECT t1.nwikiproject AS nwikiproject," +
+                        "t1.tcount AS tcount," +
+                        "t1.nbr_high_coors_leavers AS nbr_high_coors_leavers," +
+                        "t2.nbr_low_coors_leavers AS nbr_low_coors_leavers," +
+                        "FROM " + tableName(defaultDataset, "script_ns45_stdev_bins_high_coors_leavers_nbrs_full" + timeIntervalUnit, "t1") +
+                        "INNER JOIN " + tableName(defaultDataset, "script_ns45_stdev_bins_low_coors_leavers_nbrs_full" + timeIntervalUnit, "t2") +
+                        "ON t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.tcount",
+                TableId.of(defaultDataset, "script_merging_coors_high_low_nbrs" + timeIntervalUnit));
+
+        // merge the two tables above
+        runQuery("SELECT t1.nwikiproject AS nwikiproject," +
+                        "t1.tcount AS tcount," +
+                        "t1.nbr_high_prod_leavers AS nbr_high_prod_leavers," +
+                        "t1.nbr_low_prod_leavers AS nbr_low_prod_leavers," +
+                        "t2.nbr_high_coors_leavers AS nbr_high_coors_leavers," +
+                        "t2.nbr_low_coors_leavers AS nbr_low_coors_leavers," +
+                        "FROM " + tableName(defaultDataset, "script_merging_prod_high_low_nbrs" + timeIntervalUnit, "t1") +
+                        "INNER JOIN " + tableName(defaultDataset, "script_merging_coors_high_low_nbrs" + timeIntervalUnit, "t2") +
+                        "ON t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.tcount",
+                TableId.of(defaultDataset, "script_merging_coors_prod_high_low_nbrs" + timeIntervalUnit));
+
+        // merge into previous table
+        runQuery("SELECT t1.nwikiproject AS nwikiproject," +
+                        "t1.tcount AS tcount," +
+                        "t1.newcomers_nbr AS newcomers_nbr," +
+                        "t1.remainings_nbr AS remainings_nbr," +
+                        "t1.leavers_nbr AS leavers_nbr," +
+                        "t1.group_article_productivity AS group_article_productivity," +
+                        "t1.project_coors AS project_coors," +
+                        "t1.project_art_comm AS project_art_comm," +
+                        "t1.project_user_comm AS project_user_comm," +
+                        "IFNULL(t2.nbr_high_prod_leavers, 0) AS nbr_high_prod_leavers," +
+                        "IFNULL(t2.nbr_low_prod_leavers, 0) AS nbr_low_prod_leavers," +
+                        "IFNULL(t2.nbr_high_coors_leavers, 0) AS nbr_high_coors_leavers," +
+                        "IFNULL(t2.nbr_low_coors_leavers, 0) AS nbr_low_coors_leavers," +
+                        "FROM " + tableName(defaultDataset, "script_mbr_comp_dv_prod_coors_art_comm_user_comm"+timeIntervalUnit, "t1") +
+                        "LEFT JOIN " + tableName(defaultDataset, "script_merging_coors_prod_high_low_nbrs" + timeIntervalUnit, "t2") +
+                        "ON t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.tcount",
+                TableId.of(defaultDataset, "script_mbr_comp_dv_prod_coors_art_comm_user_comm_leavers_high_low_prod_coors"+timeIntervalUnit));
+    }
+
     /**
      * Compute high/low performance editors based on standard deviations
      * TODO: document details about IVs generations (what variable and how to generate) based on the existing query document
      * TODO: check what was done, what variables are meaningful to generate (the meaning and rationale of having it)
      */
 
-    private void computeRemainingMemberProjectPerformance() throws Exception {
+    private void distinguishProjectLeaverAttributes() throws Exception {
 
         // todo newcomers - previous experience (# of projects participated before)
         /**
@@ -138,36 +195,36 @@ public class QuickstartSample {
         // TODO: combine that with: Longitudinal IV - Three Bins for leavers
 
 
-        //** Work on user article productivity
+        // ** Work on user article productivity
         // Have the edits grouped by users, wikiproject, time intervals
-//        runQuery("SELECT t1.user_id AS user_id," +
-//                        "t2.nwikiproject AS nwikiproject," +
-//                        "t2.tcount AS tcount," +
-//                        "t1.article AS article," +
-//                        "FROM " + tableName("bowen_wikis_quitting", "revs_ns0_encoded_valid_users", "t1") +
-//                        "INNER JOIN " + tableName(defaultDataset, "script_user_wp_active_range_revs45"+timeIntervalUnit, "t2") +
-//                        "ON t1.user_id = t2.user_id " +
-//                        "WHERE t1.timestamp < t2.tcount_end_ts AND t1.timestamp > t2.tcount_start_ts",
-//                TableId.of(defaultDataset, "script_ns0_user_wp_edits_records"+timeIntervalUnit));
+        runQuery("SELECT t1.user_id AS user_id," +
+                        "t2.nwikiproject AS nwikiproject," +
+                        "t2.tcount AS tcount," +
+                        "t1.timestamp AS timestamp," +
+                        "FROM " + tableName("bowen_wikis_quitting", "revs_ns0_encoded_valid_users", "t1") +
+                        "INNER JOIN " + tableName(defaultDataset, "script_user_wp_active_range_revs45"+timeIntervalUnit, "t2") +
+                        "ON t1.user_id = t2.user_id " +
+                        "WHERE t1.timestamp < t2.tcount_end_ts AND t1.timestamp > t2.tcount_start_ts",
+                TableId.of(defaultDataset, "script_ns0_user_wp_edits_records"+timeIntervalUnit));
 
-//        runQuery("SELECT user_id," +
-//                        "nwikiproject," +
-//                        "tcount," +
-//                        "COUNT(*) AS aggr_productivity," +
-//                        "FROM " + tableName(defaultDataset, "script_ns0_user_wp_edits_records" + timeIntervalUnit) +
-//                        "GROUP BY user_id, nwikiproject, tcount",
-//                TableId.of(defaultDataset, "script_ns0_user_wp_tcount_aggr"+timeIntervalUnit));
-//
-//        // fill the missing tcounts
-//        runQuery("SELECT t2.user_id AS user_id," +
-//                        "t1.nwikiproject AS nwikiproject," +
-//                        "t1.tcount AS tcount," +
-//                        "IF (t2.nwikiproject IS NULL AND t2.tcount IS NULL, 0, t2.aggr_productivity) AS aggr_productivity," +
-//                        "FROM " + tableName(defaultDataset, "script_user_wp_revs_45_valid_users_wps_valid_range"+timeIntervalUnit, "t1") +
-//                        "LEFT JOIN " + tableName(defaultDataset, "script_ns0_user_wp_tcount_aggr"+timeIntervalUnit, "t2") +
-//                        "ON t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.tcount " +
-//                        "ORDER BY nwikiproject, tcount",
-//                TableId.of(defaultDataset, "script_ns0_user_wp_tcount_aggr_full"+timeIntervalUnit));
+        runQuery("SELECT user_id," +
+                        "nwikiproject," +
+                        "tcount," +
+                        "COUNT(*) AS aggr_productivity," +
+                        "FROM " + tableName(defaultDataset, "script_ns0_user_wp_edits_records" + timeIntervalUnit) +
+                        "GROUP BY user_id, nwikiproject, tcount",
+                TableId.of(defaultDataset, "script_ns0_user_wp_tcount_aggr"+timeIntervalUnit));
+
+        // fill the missing tcounts
+        runQuery("SELECT t1.user_id AS user_id," +
+                        "t1.nwikiproject AS nwikiproject," +
+                        "t1.tcount AS tcount," +
+                        "IF (t2.nwikiproject IS NULL AND t2.tcount IS NULL, 0, t2.aggr_productivity) AS aggr_productivity," +
+                        "FROM " + tableName(defaultDataset, "script_user_wp_active_range_revs45"+timeIntervalUnit, "t1") +
+                        "LEFT JOIN " + tableName(defaultDataset, "script_ns0_user_wp_tcount_aggr"+timeIntervalUnit, "t2") +
+                        "ON t1.user_id = t2.user_id AND t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.tcount ",
+                        //"ORDER BY nwikiproject, tcount",
+                TableId.of(defaultDataset, "script_ns0_user_wp_tcount_aggr_full"+timeIntervalUnit));
 
         // adding the time range on each editor for each project he involved
         runQuery("SELECT t1.user_id AS user_id," +
@@ -180,88 +237,104 @@ public class QuickstartSample {
                         "t2.leaving_tcount AS leaving_tcount," +
                         "FROM " + tableName(defaultDataset, "script_ns0_user_wp_tcount_aggr_full"+timeIntervalUnit, "t1") +
                         "INNER JOIN " + tableName(defaultDataset, "script_user_wp_active_range_revs45"+timeIntervalUnit, "t2") +
-                        "ON t1.user_id = t2.user_id AND t1.nwikiproject = t2.nwikiproject ",
+                        "ON t1.user_id = t2.user_id AND t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.tcount",
                 TableId.of(defaultDataset, "script_ns0_user_wp_tcount_aggr_full_with_range"+timeIntervalUnit));
+
+        // connect to the productivity in the previous time interval
+        runQuery("SELECT t1.user_id AS user_id," +
+                        "t1.nwikiproject AS nwikiproject," +
+                        "t1.tcount AS tcount," +
+                        "t1.aggr_productivity AS cur_aggr_productivity," +
+                        "t2.aggr_productivity AS pre_aggr_productivity," +
+                        "t1.pre_tcount AS pre_tcount," +
+                        "t1.first_tcount AS first_tcount," +
+                        "t1.last_tcount AS last_tcount," +
+                        "FROM " + tableName(defaultDataset, "script_ns0_user_wp_tcount_aggr_full_with_range"+timeIntervalUnit, "t1") +
+                        "INNER JOIN " + tableName(defaultDataset, "script_ns0_user_wp_tcount_aggr_full_with_range"+timeIntervalUnit, "t2") +
+                        "ON t1.user_id = t2.user_id AND t1.nwikiproject = t2.nwikiproject AND t1.pre_tcount = t2.tcount ",
+                TableId.of(defaultDataset, "script_ns0_user_wp_tcount_aggr_full_with_range_pre"+timeIntervalUnit));
 
         // select only remaining members, and compute the mean and stdv for each tcount of projects
         runQuery("SELECT nwikiproject," +
                         "tcount," +
-                        "AVG(aggr_productivity) AS prod_mean," +
-                        "STDDEV(aggr_productivity) AS prod_stdv," +
-                        "FROM " + tableName(defaultDataset, "script_ns0_user_wp_tcount_aggr_full_with_range"+timeIntervalUnit) +
+                        "AVG(pre_aggr_productivity) AS pre_prod_mean," +
+                        "IFNULL(STDDEV(pre_aggr_productivity), 0) AS pre_prod_stdv," +
+                        "COUNT(*) AS nbr_remainings," +
+                        "FROM " + tableName(defaultDataset, "script_ns0_user_wp_tcount_aggr_full_with_range_pre"+timeIntervalUnit) +
                         "WHERE first_tcount != tcount " +
                         "GROUP BY nwikiproject, tcount",
-                TableId.of(defaultDataset, "script_ns0_user_wp_tcount_aggr_full_with_range_remainings"+timeIntervalUnit));
+                TableId.of(defaultDataset, "script_ns0_user_wp_tcount_stats"+timeIntervalUnit));
+
+        // compute high and low bars for productivity for each wikiproject in each time interval
+        runQuery("SELECT nwikiproject," +
+                        "tcount," +
+                        "pre_prod_mean AS pre_prod_mean," +
+                        "(pre_prod_mean + pre_prod_stdv) AS high_bar," +
+                        "IF((pre_prod_mean - pre_prod_stdv) < 0, 0, pre_prod_mean - pre_prod_stdv) AS low_bar," +
+                        "nbr_remainings AS nbr_remainings," +
+                        "FROM " + tableName(defaultDataset, "script_ns0_user_wp_tcount_stats"+timeIntervalUnit),
+                TableId.of(defaultDataset, "script_ns0_user_wp_tcount_bars"+timeIntervalUnit));
 
         // high productivity leavers
         runQuery("SELECT t1.nwikiproject AS nwikiproject," +
                         "t1.tcount AS tcount," +
-                        "t2.user_id AS user+id," +
-                        "t1.mean_val AS mean_val," +
+                        "t2.user_id AS user_id," +
+                        "t1.pre_prod_mean AS mean_val," +
                         "t1.high_bar AS high_bar," +
                         "t1.low_bar AS low_bar," +
-                        "t2.pre_aggr_prod AS aggr_prod," +
-                        "FROM " + tableName(defaultDataset, "lng_ns45_remainings_stdev_bins_prod"+timeIntervalUnit, "t1") +
-                        "LEFT JOIN " + tableName(defaultDataset, ""+timeIntervalUnit, "t2") +
+                        "t1.nbr_remainings AS nbr_remainings," +
+                        "t2.pre_aggr_productivity AS pre_aggr_productivity," +
+                        "FROM " + tableName(defaultDataset, "script_ns0_user_wp_tcount_bars"+timeIntervalUnit, "t1") +
+                        "LEFT JOIN " + tableName(defaultDataset, "script_ns0_user_wp_tcount_aggr_full_with_range_pre"+timeIntervalUnit, "t2") +
                         "ON t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.tcount " +
-                        "WHERE t2.pre_aggr_prod > t1.high_bar",
-                TableId.of(defaultDataset, "lng_ns45_stdev_bins_high_prod_leavers_userids"+timeIntervalUnit));
+                        "WHERE t2.pre_aggr_productivity > t1.high_bar",
+                TableId.of(defaultDataset, "script_ns0_stdev_bins_high_prod_leavers_userids"+timeIntervalUnit));
 
         runQuery("SELECT nwikiproject," +
                         "tcount," +
                         "COUNT(*) AS nbr_high_prod_leavers," +
-                        "FROM " + tableName(defaultDataset, "lng_ns45_stdev_bins_high_prod_leavers_userids"+timeIntervalUnit) +
+                        "FROM " + tableName(defaultDataset, "script_ns0_stdev_bins_high_prod_leavers_userids"+timeIntervalUnit) +
                         "GROUP BY nwikiproject, tcount",
-                TableId.of(defaultDataset, "lng_ns45_stdev_bins_high_prod_leavers_nbrs"+timeIntervalUnit));
+                TableId.of(defaultDataset, "script_ns0_stdev_bins_high_prod_leavers_nbrs"+timeIntervalUnit));
 
         // fill the missing ones
         runQuery("SELECT t1.nwikiproject AS nwikiproject," +
                         "t1.tcount AS tcount," +
                         "IF(t2.nwikiproject IS NULL AND t2.tcount IS NULL, 0, t2.nbr_high_prod_leavers) AS nbr_high_prod_leavers," +
-                        "FROM " + tableName(defaultDataset, "", "t1") +
-                        "LEFT JOIN " + tableName(defaultDataset, "lng_ns45_stdev_bins_high_prod_leavers_nbrs" + timeIntervalUnit, "t2") +
+                        "FROM " + tableName(defaultDataset, "script_user_wp_revs_45_valid_users_wps_valid_range"+timeIntervalUnit, "t1") +
+                        "LEFT JOIN " + tableName(defaultDataset, "script_ns0_stdev_bins_high_prod_leavers_nbrs" + timeIntervalUnit, "t2") +
                         "ON t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.tcount",
-                TableId.of(defaultDataset, "" + timeIntervalUnit));
+                TableId.of(defaultDataset, "script_ns0_stdev_bins_high_prod_leavers_nbrs_full" + timeIntervalUnit));
 
+        // ** low productivity leavers
         runQuery("SELECT t1.nwikiproject AS nwikiproject," +
                         "t1.tcount AS tcount," +
                         "t2.user_id AS user_id," +
-                        "t1.mean_prod AS mean_prod," +
+                        "t1.pre_prod_mean AS mean_val," +
                         "t1.high_bar AS high_bar," +
                         "t1.low_bar AS low_bar," +
-                        "t2.pre_aggr_prod AS pre_aggr_prod," +
-                        "FROM " + tableName(defaultDataset, "lng_ns45_remainings_stdev_bins_prod"+timeIntervalUnit, "t1") +
-                        "LEFT JOIN " + tableName(defaultDataset, "lng_ns45_remainings_stdev_bins_prod"+timeIntervalUnit, "t2") +
+                        "t2.pre_aggr_productivity AS pre_aggr_productivity," +
+                        "FROM " + tableName(defaultDataset, "script_ns0_user_wp_tcount_bars"+timeIntervalUnit, "t1") +
+                        "LEFT JOIN " + tableName(defaultDataset, "script_ns0_user_wp_tcount_aggr_full_with_range_pre"+timeIntervalUnit, "t2") +
                         "ON t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.tcount " +
-                        "WHERE t2.pre_aggr_prod < t1.low_bar ",
-                TableId.of(defaultDataset, "lng_ns45_stdev_bins_low_prod_leavers_userids"+timeIntervalUnit));
+                        "WHERE t2.pre_aggr_productivity < t1.low_bar ",
+                TableId.of(defaultDataset, "script_ns0_stdev_bins_low_prod_leavers_userids"+timeIntervalUnit));
 
         runQuery("SELECT nwikiproject," +
                         "tcount," +
                         "COUNT(*) AS nbr_low_prod_leavers," +
-                        "FROM " + tableName(defaultDataset, "lng_ns45_stdev_bins_low_prod_leavers_userids"+timeIntervalUnit) +
+                        "FROM " + tableName(defaultDataset, "script_ns0_stdev_bins_low_prod_leavers_userids"+timeIntervalUnit) +
                         "GROUP BY nwikiproject, tcount",
-                TableId.of(defaultDataset, "lng_ns45_stdev_bins_low_prod_leavers_nbrs"+timeIntervalUnit));
+                TableId.of(defaultDataset, "script_ns0_stdev_bins_low_prod_leavers_nbrs"+timeIntervalUnit));
 
         // fill the missing ones
         runQuery("SELECT t1.nwikiproject AS nwikiproject," +
                         "t1.tcount AS tcount," +
                         "IF(t2.nwikiproject IS NULL AND t2.tcount IS NULL, 0, t2.nbr_low_prod_leavers) AS nbr_low_prod_leavers," +
-                        "FROM " + tableName(defaultDataset, "", "t1") +
-                        "LEFT JOIN " + tableName(defaultDataset, "lng_ns45_stdev_bins_low_prod_leavers_nbrs" + timeIntervalUnit, "t2") +
+                        "FROM " + tableName(defaultDataset, "script_user_wp_revs_45_valid_users_wps_valid_range"+timeIntervalUnit, "t1") +
+                        "LEFT JOIN " + tableName(defaultDataset, "script_ns0_stdev_bins_low_prod_leavers_nbrs" + timeIntervalUnit, "t2") +
                         "ON t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.tcount",
-                TableId.of(defaultDataset, "" + timeIntervalUnit));
-        /*
-        SELECT nwikiproject,
-       tcount,
-       AVG(aggr_productivity) AS mean,
-       STDDEV(aggr_productivity) AS stdv,
--- SELECT unique(nwikiproject),
-FROM [robert-kraut-1234:bowen_quitting_script.script_ns0_user_wp_tcount_aggr_full_with_range1]
-GROUP BY nwikiproject, tcount
-         */
-
-        // run script to generate the three bins for each editor
+                TableId.of(defaultDataset, "script_ns0_stdev_bins_low_prod_leavers_nbrs_full" + timeIntervalUnit));
 
         //** Work on user project coordinations
 
@@ -271,7 +344,7 @@ GROUP BY nwikiproject, tcount
         runQuery("SELECT t1.user_id AS user_id," +
                         "t2.nwikiproject AS nwikiproject," +
                         "t2.tcount AS tcount," +
-                        "t1.coor_edits AS coor_edits," +
+                        "t1.timestamp AS timestamp," +
                         "FROM " + tableName("bowen_wikis_quitting", "lng_user_wikiproject_valid_revs_45", "t1") +
                         "INNER JOIN " + tableName(defaultDataset, "script_user_wp_active_range_revs45"+timeIntervalUnit, "t2") +
                         "ON t1.user_id = t2.user_id " +
@@ -287,13 +360,13 @@ GROUP BY nwikiproject, tcount
                 TableId.of(defaultDataset, "script_ns45_user_wp_tcount_aggr"+timeIntervalUnit));
 
         // fill the missing tcounts
-        runQuery("SELECT t2.user_id AS user_id," +
+        runQuery("SELECT t1.user_id AS user_id," +
                         "t1.nwikiproject AS nwikiproject," +
                         "t1.tcount AS tcount," +
                         "IF (t2.nwikiproject IS NULL AND t2.tcount IS NULL, 0, t2.aggr_coordination45) AS aggr_coordination45," +
-                        "FROM " + tableName(defaultDataset, "script_user_wp_revs_45_valid_users_wps_valid_range"+timeIntervalUnit, "t1") +
+                        "FROM " + tableName(defaultDataset, "script_user_wp_active_range_revs45"+timeIntervalUnit, "t1") +
                         "LEFT JOIN " + tableName(defaultDataset, "script_ns45_user_wp_tcount_aggr"+timeIntervalUnit, "t2") +
-                        "ON t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.tcount " +
+                        "ON t1.user_id = t2.user_id AND t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.tcount " +
                         "ORDER BY nwikiproject, tcount",
                 TableId.of(defaultDataset, "script_ns45_user_wp_tcount_aggr_full"+timeIntervalUnit));
 
@@ -308,100 +381,156 @@ GROUP BY nwikiproject, tcount
                         "t2.leaving_tcount AS leaving_tcount," +
                         "FROM " + tableName(defaultDataset, "script_ns45_user_wp_tcount_aggr_full"+timeIntervalUnit, "t1") +
                         "INNER JOIN " + tableName(defaultDataset, "script_user_wp_active_range_revs45"+timeIntervalUnit, "t2") +
-                        "ON t1.user_id = t2.user_id AND t1.nwikiproject = t2.nwikiproject ",
+                        "ON t1.user_id = t2.user_id AND t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.tcount",
                 TableId.of(defaultDataset, "script_ns45_user_wp_tcount_aggr_full_with_range"+timeIntervalUnit));
 
-        // select only remaining members
-        runQuery("SELECT *," +
-                        "FROM " + tableName(defaultDataset, "script_ns45_user_wp_tcount_aggr_full_with_range"+timeIntervalUnit) +
-                        "WHERE first_tcount != tcount" +
-                        "ORDER BY user_id, nwikiproject, tcount",
-                TableId.of(defaultDataset, "script_ns45_user_wp_tcount_aggr_full_with_range_remainings"+timeIntervalUnit));
+        // connect to the productivity in the previous time interval
+        runQuery("SELECT t1.user_id AS user_id," +
+                        "t1.nwikiproject AS nwikiproject," +
+                        "t1.tcount AS tcount," +
+                        "t1.aggr_coordination45 AS cur_aggr_coordination45," +
+                        "t2.aggr_coordination45 AS pre_aggr_coordination45," +
+                        "t1.pre_tcount AS pre_tcount," +
+                        "t1.first_tcount AS first_tcount," +
+                        "t1.last_tcount AS last_tcount," +
+                        "FROM " + tableName(defaultDataset, "script_ns45_user_wp_tcount_aggr_full_with_range"+timeIntervalUnit, "t1") +
+                        "INNER JOIN " + tableName(defaultDataset, "script_ns45_user_wp_tcount_aggr_full_with_range"+timeIntervalUnit, "t2") +
+                        "ON t1.user_id = t2.user_id AND t1.nwikiproject = t2.nwikiproject AND t1.pre_tcount = t2.tcount ",
+                TableId.of(defaultDataset, "script_ns45_user_wp_tcount_aggr_full_with_range_pre"+timeIntervalUnit));
 
+        runQuery("SELECT t1.user_id AS user_id," +
+                        "t1.nwikiproject AS nwikiproject," +
+                        "t1.tcount AS tcount," +
+                        "t1.aggr_productivity AS cur_aggr_productivity," +
+                        "t2.aggr_productivity AS pre_aggr_productivity," +
+                        "t1.pre_tcount AS pre_tcount," +
+                        "t1.first_tcount AS first_tcount," +
+                        "t1.last_tcount AS last_tcount," +
+                        "FROM " + tableName(defaultDataset, "script_ns0_user_wp_tcount_aggr_full_with_range"+timeIntervalUnit, "t1") +
+                        "INNER JOIN " + tableName(defaultDataset, "script_ns0_user_wp_tcount_aggr_full_with_range"+timeIntervalUnit, "t2") +
+                        "ON t1.user_id = t2.user_id AND t1.nwikiproject = t2.nwikiproject AND t1.pre_tcount = t2.tcount ",
+                TableId.of(defaultDataset, "script_ns0_user_wp_tcount_aggr_full_with_range_pre"+timeIntervalUnit));
 
-        //todo: to distinguish newcomers/leavers
+        // select only remaining members, and compute the mean and stdv for each tcount of projects
+        runQuery("SELECT nwikiproject," +
+                        "tcount," +
+                        "AVG(pre_aggr_coordination45) AS pre_coors_mean," +
+                        "IFNULL(STDDEV(pre_aggr_coordination45), 0) AS pre_coors_stdv," +
+                        "COUNT(*) AS nbr_remainings," +
+                        "FROM " + tableName(defaultDataset, "script_ns45_user_wp_tcount_aggr_full_with_range_pre"+timeIntervalUnit) +
+                        "WHERE first_tcount != tcount " +
+                        "GROUP BY nwikiproject, tcount",
+                TableId.of(defaultDataset, "script_ns45_user_wp_tcount_stats"+timeIntervalUnit));
 
-        // todo: previous productivity, exclude newcomers for the remainings
+        // compute high and low bars for coordination for each wikiproject in each time interval
+        runQuery("SELECT nwikiproject," +
+                        "tcount," +
+                        "pre_coors_mean AS pre_coors_mean," +
+                        "(pre_coors_mean + pre_coors_stdv) AS high_bar," +
+                        "IF((pre_coors_mean - pre_coors_stdv) < 0, 0, pre_coors_mean - pre_coors_stdv) AS low_bar," +
+                        "nbr_remainings AS nbr_remainings," +
+                        "FROM " + tableName(defaultDataset, "script_ns45_user_wp_tcount_stats"+timeIntervalUnit),
+                TableId.of(defaultDataset, "script_ns45_user_wp_tcount_bars"+timeIntervalUnit));
 
-        // todo: check the code base to see how to deal with tcount alignments
+        // high coordination leavers
+        runQuery("SELECT t1.nwikiproject AS nwikiproject," +
+                        "t1.tcount AS tcount," +
+                        "t2.user_id AS user_id," +
+                        "t1.pre_coors_mean AS mean_val," +
+                        "t1.high_bar AS high_bar," +
+                        "t1.low_bar AS low_bar," +
+                        "t1.nbr_remainings AS nbr_remainings," +
+                        "t2.pre_aggr_coordination45 AS pre_aggr_coordination45," +
+                        "FROM " + tableName(defaultDataset, "script_ns45_user_wp_tcount_bars"+timeIntervalUnit, "t1") +
+                        "LEFT JOIN " + tableName(defaultDataset, "script_ns45_user_wp_tcount_aggr_full_with_range_pre"+timeIntervalUnit, "t2") +
+                        "ON t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.tcount " +
+                        "WHERE t2.pre_aggr_coordination45 > t1.high_bar",
+                TableId.of(defaultDataset, "script_ns45_stdev_bins_high_coors_leavers_userids"+timeIntervalUnit));
 
-        // todo: use the value distribution of remaining members, then create three bins for leavers
+        runQuery("SELECT nwikiproject," +
+                        "tcount," +
+                        "COUNT(*) AS nbr_high_coors_leavers," +
+                        "FROM " + tableName(defaultDataset, "script_ns45_stdev_bins_high_coors_leavers_userids"+timeIntervalUnit) +
+                        "GROUP BY nwikiproject, tcount",
+                TableId.of(defaultDataset, "script_ns45_stdev_bins_high_coors_leavers_nbrs"+timeIntervalUnit));
 
-        // leaver coordination (project level) - three bins
+        // fill the missing ones
+        runQuery("SELECT t1.nwikiproject AS nwikiproject," +
+                        "t1.tcount AS tcount," +
+                        "IF(t2.nwikiproject IS NULL AND t2.tcount IS NULL, 0, t2.nbr_high_coors_leavers) AS nbr_high_coors_leavers," +
+                        "FROM " + tableName(defaultDataset, "script_user_wp_revs_45_valid_users_wps_valid_range"+timeIntervalUnit, "t1") +
+                        "LEFT JOIN " + tableName(defaultDataset, "script_ns45_stdev_bins_high_coors_leavers_nbrs" + timeIntervalUnit, "t2") +
+                        "ON t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.tcount",
+                TableId.of(defaultDataset, "script_ns45_stdev_bins_high_coors_leavers_nbrs_full" + timeIntervalUnit));
 
+        // ** low coordination leavers
+        runQuery("SELECT t1.nwikiproject AS nwikiproject," +
+                        "t1.tcount AS tcount," +
+                        "t2.user_id AS user_id," +
+                        "t1.pre_coors_mean AS mean_val," +
+                        "t1.high_bar AS high_bar," +
+                        "t1.low_bar AS low_bar," +
+                        "t2.pre_aggr_coordination45 AS pre_aggr_coordination45," +
+                        "FROM " + tableName(defaultDataset, "script_ns45_user_wp_tcount_bars"+timeIntervalUnit, "t1") +
+                        "LEFT JOIN " + tableName(defaultDataset, "script_ns45_user_wp_tcount_aggr_full_with_range_pre"+timeIntervalUnit, "t2") +
+                        "ON t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.tcount " +
+                        "WHERE t2.pre_aggr_coordination45 < t1.low_bar ",
+                TableId.of(defaultDataset, "script_ns45_stdev_bins_low_coors_leavers_userids"+timeIntervalUnit));
+
+        runQuery("SELECT nwikiproject," +
+                        "tcount," +
+                        "COUNT(*) AS nbr_low_coors_leavers," +
+                        "FROM " + tableName(defaultDataset, "script_ns45_stdev_bins_low_coors_leavers_userids"+timeIntervalUnit) +
+                        "GROUP BY nwikiproject, tcount",
+                TableId.of(defaultDataset, "script_ns45_stdev_bins_low_coors_leavers_nbrs"+timeIntervalUnit));
+
+        // fill the missing ones
+        runQuery("SELECT t1.nwikiproject AS nwikiproject," +
+                        "t1.tcount AS tcount," +
+                        "IF(t2.nwikiproject IS NULL AND t2.tcount IS NULL, 0, t2.nbr_low_coors_leavers) AS nbr_low_coors_leavers," +
+                        "FROM " + tableName(defaultDataset, "script_user_wp_revs_45_valid_users_wps_valid_range"+timeIntervalUnit, "t1") +
+                        "LEFT JOIN " + tableName(defaultDataset, "script_ns45_stdev_bins_low_coors_leavers_nbrs" + timeIntervalUnit, "t2") +
+                        "ON t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.tcount",
+                TableId.of(defaultDataset, "script_ns45_stdev_bins_low_coors_leavers_nbrs_full" + timeIntervalUnit));
+
+        // Newcomer's prior experience - number of WPs joined
+        // Longitudinal IV - Newcomer Prior Experience by # of WPs Joined
     }
 
-    private void createThreeBinsForEachProjectTcount() {
+    private void computeControlVariables() {
+        /*
+        CV - Project tenure
+Wikiproject creation timestamp
+Sql
+SELECT nwikiproject,
+       MIN(first_edit) AS wp_creation_ts,
+FROM [bowen_wikis_quitting.rev_ns45_user_wp_global_tcount_range_valid]
+GROUP BY nwikiproject
 
-        String csvFile = "/Users/mkyong/csv/country.csv";
-        BufferedReader br = null;
-        String line = "";
-        String cvsSplitBy = ",";
+Table: wikiproject_creation_ts
+Wikiproject age to each time interval
+Sql
+SELECT t1.nwikiproject AS nwikiproject,
+       t2.tcount AS tcount,
+       IF(t2.start_ts - t1.wp_creation_ts > 0, t2.start_ts - t1.wp_creation_ts, 0) AS wp_tenure,
+FROM [bowen_wikis_quitting.wikiproject_creation_ts] t1
+JOIN [bowen_wikis_quitting.lng_historical_tcount_6months] t2
+ON t1.nwikiproject = t2.nwikiproject
+Table: lng_cv_project_tenure_partial
+Filter out zeros and convert time unit.
+Sql
+SELECT t1.nwikiproject AS nwikiproject,
+       t1.tcount AS tcount,
+       t1.wp_tenure / (3600*24*30) AS wp_tenure,
+FROM [bowen_wikis_quitting.lng_cv_project_tenure_partial] t1
+WHERE wp_tenure != 0
+ORDER BY nwikiproject, tcount
+Table: lng_cv_project_tenure
 
-
-        try {
-
-            Boolean header = true;
-            br = new BufferedReader(new FileReader(csvFile));
-            while ((line = br.readLine()) != null) {
-
-                // use comma as separator
-                String[] country = line.split(cvsSplitBy);
-                int result = Integer.parseInt(country[1]);
-                System.out.println("Country [code= " + country[4] + " , name=" + country[5] + "]");
-
-                int projectId = -1, preProjectId = -2;
-                int tcount = -1, preTcount=-2;
-                int val = 0;
-                ArrayList<Integer> vals = new ArrayList<Integer>();
-
-                if (header) {
-                    header = false;
-                    continue;
-                }
-
-                if (preProjectId == -1) {
-                    vals.add(val);
-                    preProjectId = projectId;
-                    preTcount = -1;
-                }
-
-                if (projectId == preProjectId) {
-
-                    if (tcount != preTcount) {
-                        preProjectId = projectId;
-                        preTcount = tcount;
-                        // compute mean, average, and stdv for three bins
-                        // write out results
-                        // http://stackoverflow.com/questions/18390548/how-to-calculate-standard-deviation-using-java
-
-                    } else {
-                        vals.add(val);
-                    }
-
-                } else {
-                    vals.add(val);
-                    preTcount = tcount;
-                    // compute mean, average, and stdv for three bins
-                    // write out results
-                }
-
-            }
-
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-            if (br != null) {
-                try {
-                    br.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
+         */
     }
+
+
 
     private void mergeDVsAndMemberComposition() throws Exception {
 
