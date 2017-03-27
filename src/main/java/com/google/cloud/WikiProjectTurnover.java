@@ -1,19 +1,12 @@
 package com.google.cloud;
 
-// Imports the Google Cloud client library
-//import com.google.api.services.bigquery.Bigquery;
-//import com.google.api.services.bigquery.model.*;
-
 import java.io.*;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.stream.Collectors;
 
 import com.google.cloud.bigquery.*;
-import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.TableId;
-import javafx.scene.control.Tab;
 
 /**
  * Key steps to set up:
@@ -35,10 +28,9 @@ import javafx.scene.control.Tab;
  * 1. add an extra space at the end of a statement for the query validation.
  * 2. add the month unit for the table of each table to create separate table sets.
  */
-public class QuickstartSample {
+public class WikiProjectTurnover {
 
     private int recordThreshold;
-    private BigQuery bigquery;
     private Util util;
     private String defaultDataset;
     private String superficialLeaverAnalysisFile;
@@ -47,14 +39,13 @@ public class QuickstartSample {
     // number of edits on articles within the scope of the project
 
 
-    QuickstartSample() {
+    WikiProjectTurnover() {
         recordThreshold = 500;
         timeIntervalUnit = 3;
         monthlyEditingThreshold = 5;
 //        superficialLeaverAnalysisFile = "superficial_leaver_analysis_ns45_above_0.1_0.2.csv";
         superficialLeaverAnalysisFile = "substantive_leaver_analysis_ns45_0.15_0.2.csv";
         defaultDataset = "bowen_quitting_script";
-        this.bigquery = new BigQueryOptions.DefaultBigqueryFactory().create(BigQueryOptions.defaultInstance());
         this.util = new Util();
     }
 
@@ -92,7 +83,7 @@ public class QuickstartSample {
 
 
     public static void main(String... args) throws Exception {
-        QuickstartSample self = new QuickstartSample();
+        WikiProjectTurnover self = new WikiProjectTurnover();
         
         
         // Create the valid range of the project in the following three steps
@@ -156,72 +147,72 @@ public class QuickstartSample {
         // for all the newcomers to the project find when is their first edits in wikipedia..
 
         // identify users and their project by their ids
-//        util.runQuery("SElECT user_id," +
-//                        "nwikiproject," +
-//                        "MIN(timestamp) AS first_edit," +
-//                        "FROM " + util.tableName("bowen_wikis_quitting", "lng_user_wikiproject_valid_revs_45") +
-//                        "GROUP BY user_id, nwikiproject",
-//                TableId.of(defaultDataset, "script_wp_editor_first_edits"));
+        util.runQuery("SElECT user_id," +
+                        "nwikiproject," +
+                        "MIN(timestamp) AS first_edit," +
+                        "FROM " + util.tableName("bowen_wikis_quitting", "lng_user_wikiproject_valid_revs_45") +
+                        "GROUP BY user_id, nwikiproject",
+                TableId.of(defaultDataset, "script_wp_editor_first_edits"));
 
 
         // select only newcomers
-//        util.runQuery("SELECT t1.user_id AS user_id," +
-//                        "t1.nwikiproject AS nwikiproject," +
-//                        "t1.first_edit AS first_edit," +
-//                        "t2.tcount AS tcount," +
-//                        "FROM " + util.tableName(defaultDataset, "script_wp_editor_first_edits", "t1") +
-//                        "INNER JOIN " + util.tableName(defaultDataset, "script_wp_newcomers_tcount" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t2") +
-//                        "ON t1.nwikiproject = t2.nwikiproject AND t1.user_id = t2.user_id",
-//                TableId.of(defaultDataset, "script_wp_newcomer_name_id" + timeIntervalUnit+"edit"+monthlyEditingThreshold));
+        util.runQuery("SELECT t1.user_id AS user_id," +
+                        "t1.nwikiproject AS nwikiproject," +
+                        "t1.first_edit AS first_edit," +
+                        "t2.tcount AS tcount," +
+                        "FROM " + util.tableName(defaultDataset, "script_wp_editor_first_edits", "t1") +
+                        "INNER JOIN " + util.tableName(defaultDataset, "script_wp_newcomers_tcount" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t2") +
+                        "ON t1.nwikiproject = t2.nwikiproject AND t1.user_id = t2.user_id",
+                TableId.of(defaultDataset, "script_wp_newcomer_name_id" + timeIntervalUnit+"edit"+monthlyEditingThreshold));
 
         // select only newcomers without wikiprojects
-//        util.runQuery("SELECT user_id," +
-//                "COUNT(*) AS sum," +
-//                "FROM " + util.tableName(defaultDataset, "script_wp_newcomer_name_id" + timeIntervalUnit+"edit"+monthlyEditingThreshold) +
-//                "GROUP BY user_id",
-//                TableId.of(defaultDataset, "script_newcomer_ids_only"));
+        util.runQuery("SELECT user_id," +
+                "COUNT(*) AS sum," +
+                "FROM " + util.tableName(defaultDataset, "script_wp_newcomer_name_id" + timeIntervalUnit+"edit"+monthlyEditingThreshold) +
+                "GROUP BY user_id",
+                TableId.of(defaultDataset, "script_newcomer_ids_only"));
 
-//        // identify their first edits in wikipedia
-//        util.runQuery("SELECT t1.rev_user_id AS user_id," +
-//                        "MIN(t1.rev_timestamp) AS wp_first_edit," +
-//                        "FROM " + util.tableName("bowen_user_dropouts", "revs", "t1") +
-//                        "INNER JOIN " + util.tableName(defaultDataset, "script_newcomer_ids_only", "t2") +
-//                        "ON t1.rev_user_id = t2.user_id " +
-//                        "GROUP BY user_id",
-//                TableId.of(defaultDataset, "script_newcomer_first_edit_wp"));
-//
-//        // join users with their project time range
-//        util.runQuery("SELECT t1.user_id AS user_id," +
-//                        "t1.nwikiproject AS nwikiproject," +
-//                        "t1.tcount AS tcount," +
-//                        "t2.wp_first_edit AS wp_first_edit," +
-//                        "FROM " + util.tableName(defaultDataset, "script_wp_newcomers_tcount" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t1") +
-//                        "INNER JOIN " + util.tableName(defaultDataset, "script_newcomer_first_edit_wp", "t2") +
-//                        "ON t1.user_id = t2.user_id",
-//                TableId.of(defaultDataset, "script_newcomer_wp_first_edit_project_tcount" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
-//
-//
-//        // add the timestamp for the tcount of the project
-//        util.runQuery("SELECT t1.user_id AS user_id," +
-//                        "t1.nwikiproject AS nwikiproject," +
-//                        "t1.tcount AS tcount," +
-//                        "t2.start_ts AS start_ts," +
-//                        "t2.end_ts AS end_ts," +
-//                        "t1.wp_first_edit AS wp_first_edit," +
-//                        "FROM " + util.tableName(defaultDataset, "script_newcomer_wp_first_edit_project_tcount" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t1") +
-//                        "INNER JOIN " + util.tableName(defaultDataset, "script_user_wp_revs_45_valid_users_wps_valid_range"+timeIntervalUnit, "t2") +
-//                        "ON t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.tcount",
-//                TableId.of(defaultDataset, "script_newcomer_wp_first_edit_project_tcount_ts_range" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
-//
-//
-//        // identify wp newbies
-//        util.runQuery("SELECT nwikiproject," +
-//                        "tcount," +
-//                        "COUNT(*) AS newbie_nbr," +
-//                        "FROM " + util.tableName(defaultDataset, "script_newcomer_wp_first_edit_project_tcount_ts_range" + timeIntervalUnit + "edit" + monthlyEditingThreshold) +
-//                        "WHERE wp_first_edit >= start_ts AND wp_first_edit < end_ts " +
-//                        "GROUP BY nwikiproject, tcount",
-//                TableId.of(defaultDataset, "script_wp_newbie_nbr_tcount" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
+        // identify their first edits in wikipedia
+        util.runQuery("SELECT t1.rev_user_id AS user_id," +
+                        "MIN(t1.rev_timestamp) AS wp_first_edit," +
+                        "FROM " + util.tableName("bowen_user_dropouts", "revs", "t1") +
+                        "INNER JOIN " + util.tableName(defaultDataset, "script_newcomer_ids_only", "t2") +
+                        "ON t1.rev_user_id = t2.user_id " +
+                        "GROUP BY user_id",
+                TableId.of(defaultDataset, "script_newcomer_first_edit_wp"));
+
+        // join users with their project time range
+        util.runQuery("SELECT t1.user_id AS user_id," +
+                        "t1.nwikiproject AS nwikiproject," +
+                        "t1.tcount AS tcount," +
+                        "t2.wp_first_edit AS wp_first_edit," +
+                        "FROM " + util.tableName(defaultDataset, "script_wp_newcomers_tcount" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t1") +
+                        "INNER JOIN " + util.tableName(defaultDataset, "script_newcomer_first_edit_wp", "t2") +
+                        "ON t1.user_id = t2.user_id",
+                TableId.of(defaultDataset, "script_newcomer_wp_first_edit_project_tcount" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
+
+
+        // add the timestamp for the tcount of the project
+        util.runQuery("SELECT t1.user_id AS user_id," +
+                        "t1.nwikiproject AS nwikiproject," +
+                        "t1.tcount AS tcount," +
+                        "t2.start_ts AS start_ts," +
+                        "t2.end_ts AS end_ts," +
+                        "t1.wp_first_edit AS wp_first_edit," +
+                        "FROM " + util.tableName(defaultDataset, "script_newcomer_wp_first_edit_project_tcount" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t1") +
+                        "INNER JOIN " + util.tableName(defaultDataset, "script_user_wp_revs_45_valid_users_wps_valid_range"+timeIntervalUnit, "t2") +
+                        "ON t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.tcount",
+                TableId.of(defaultDataset, "script_newcomer_wp_first_edit_project_tcount_ts_range" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
+
+
+        // identify wp newbies
+        util.runQuery("SELECT nwikiproject," +
+                        "tcount," +
+                        "COUNT(*) AS newbie_nbr," +
+                        "FROM " + util.tableName(defaultDataset, "script_newcomer_wp_first_edit_project_tcount_ts_range" + timeIntervalUnit + "edit" + monthlyEditingThreshold) +
+                        "WHERE wp_first_edit >= start_ts AND wp_first_edit < end_ts " +
+                        "GROUP BY nwikiproject, tcount",
+                TableId.of(defaultDataset, "script_wp_newbie_nbr_tcount" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
 
 
         util.runQuery("SELECT t1.nwikiproject AS nwikiproject," +
@@ -280,70 +271,70 @@ public class QuickstartSample {
      */
     private void identifyShortAndLongTermLeavers() throws Exception {
 
-//        // mark short term and long term leavers
-//        util.runQuery("SELECT user_id," +
-//                        "nwikiproject," +
-//                        "tcount," +
-//                        "last_tcount," +
-//                        "IF(mbrship_length == 1, true, false) AS is_short_term," +
-//                        "IF(mbrship_length > 1, true, false) AS is_long_term," +
-//                        "FROM " + util.tableName(defaultDataset, "script_leavers_wp_tcount_acc_ns045" + timeIntervalUnit + "edit" + monthlyEditingThreshold),
-//                TableId.of(defaultDataset, "script_leavers_wp_tcount_acc_ns045_mbrship_length" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
-//
-//        // connect userid with users' edits to a specific project
-//        // Edits timestamp on ns45 of short term leavers
-//        util.runQuery("SELECT t1.user_id AS user_id," +
-//                        "t2.user_text AS user_text," +
-//                        "t1.nwikiproject AS nwikiproject," +
-//                        "t2.wikiproject AS wikiproject," +
-//                        "t2.timestamp AS timestamp," +
-//                        "t2.ns AS ns," +
-//                        "FROM " + util.tableName(defaultDataset, "script_leavers_wp_tcount_acc_ns045_mbrship_length" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t1") +
-//                        "INNER JOIN " + util.tableName("bowen_wikis_quitting", "lng_user_wikiproject_valid_revs_45", "t2") +
-//                        "ON t1.user_id = t2.user_id AND t1.nwikiproject = t2.nwikiproject " +
-//                        "WHERE t1.is_short_term IS TRUE",
-//                TableId.of(defaultDataset, "script_short_term_leavers_wp_edits_ts" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
-//
-//
-//        // Edits timestamp on ns45 of long term leavers
-//        util.runQuery("SELECT t1.user_id AS user_id," +
-//                        "t2.user_text AS user_text," +
-//                        "t1.nwikiproject AS nwikiproject," +
-//                        "t2.wikiproject AS wikiproject," +
-//                        "t2.timestamp AS timestamp," +
-//                        "t2.ns AS ns," +
-//                        "FROM " + util.tableName(defaultDataset, "script_leavers_wp_tcount_acc_ns045_mbrship_length" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t1") +
-//                        "INNER JOIN " + util.tableName("bowen_wikis_quitting", "lng_user_wikiproject_valid_revs_45", "t2") +
-//                        "ON t1.user_id = t2.user_id AND t1.nwikiproject = t2.nwikiproject " +
-//                        "WHERE t1.is_long_term IS TRUE",
-//                TableId.of(defaultDataset, "script_long_term_leavers_wp_edits_ts" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
-//
-//        // identify the time range of the last tcounts of each wikiproject
-//        util.runQuery("SELECT t1.user_id AS user_id," +
-//                        "t1.nwikiproject AS nwikiproject," +
-//                        "t1.tcount AS tcount," +
-//                        "t2.start_ts AS start_ts," +
-//                        "t2.end_ts AS end_ts," +
-//                        "FROM " + util.tableName(defaultDataset, "script_leavers_wp_tcount_acc_ns045_mbrship_length" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t1") +
-//                        "INNER JOIN " + util.tableName(defaultDataset, "script_user_wp_revs_45_valid_users_wps_valid_range" + timeIntervalUnit, "t2") +
-//                        "ON t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.tcount " +
-//                        "WHERE t1.tcount = t1.last_tcount AND t1.is_long_term IS TRUE",
-//                TableId.of(defaultDataset, "script_long_term_leavers_wp_last_tcounts" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
-//
-//        // identify the edits of long term editors in their last tcounts
-//                util.runQuery("SELECT t1.user_id AS user_id," +
-//                        "t2.user_text AS user_text," +
-//                        "t1.nwikiproject AS nwikiproject," +
-//                        "t2.wikiproject AS wikiproject," +
-//                        "t2.timestamp AS timestamp," +
-//                        "t2.ns AS ns," +
-//                        "FROM " + util.tableName(defaultDataset, "script_long_term_leavers_wp_last_tcounts" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t1") +
-//                        "INNER JOIN " + util.tableName("bowen_wikis_quitting", "lng_user_wikiproject_valid_revs_45", "t2") +
-//                        "ON t1.user_id = t2.user_id AND t1.nwikiproject = t2.nwikiproject " +
-//                        "WHERE t2.timestamp >= t1.start_ts AND t2.timestamp < t1.end_ts",
-//                TableId.of(defaultDataset, "script_long_term_leavers_wp_edits_ts_last_tcounts" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
-//
-//        // Find the comments of those editors in the revision for short terms leavers
+        // mark short term and long term leavers
+        util.runQuery("SELECT user_id," +
+                        "nwikiproject," +
+                        "tcount," +
+                        "last_tcount," +
+                        "IF(mbrship_length == 1, true, false) AS is_short_term," +
+                        "IF(mbrship_length > 1, true, false) AS is_long_term," +
+                        "FROM " + util.tableName(defaultDataset, "script_leavers_wp_tcount_acc_ns045" + timeIntervalUnit + "edit" + monthlyEditingThreshold),
+                TableId.of(defaultDataset, "script_leavers_wp_tcount_acc_ns045_mbrship_length" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
+
+        // connect userid with users' edits to a specific project
+        // Edits timestamp on ns45 of short term leavers
+        util.runQuery("SELECT t1.user_id AS user_id," +
+                        "t2.user_text AS user_text," +
+                        "t1.nwikiproject AS nwikiproject," +
+                        "t2.wikiproject AS wikiproject," +
+                        "t2.timestamp AS timestamp," +
+                        "t2.ns AS ns," +
+                        "FROM " + util.tableName(defaultDataset, "script_leavers_wp_tcount_acc_ns045_mbrship_length" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t1") +
+                        "INNER JOIN " + util.tableName("bowen_wikis_quitting", "lng_user_wikiproject_valid_revs_45", "t2") +
+                        "ON t1.user_id = t2.user_id AND t1.nwikiproject = t2.nwikiproject " +
+                        "WHERE t1.is_short_term IS TRUE",
+                TableId.of(defaultDataset, "script_short_term_leavers_wp_edits_ts" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
+
+
+        // Edits timestamp on ns45 of long term leavers
+        util.runQuery("SELECT t1.user_id AS user_id," +
+                        "t2.user_text AS user_text," +
+                        "t1.nwikiproject AS nwikiproject," +
+                        "t2.wikiproject AS wikiproject," +
+                        "t2.timestamp AS timestamp," +
+                        "t2.ns AS ns," +
+                        "FROM " + util.tableName(defaultDataset, "script_leavers_wp_tcount_acc_ns045_mbrship_length" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t1") +
+                        "INNER JOIN " + util.tableName("bowen_wikis_quitting", "lng_user_wikiproject_valid_revs_45", "t2") +
+                        "ON t1.user_id = t2.user_id AND t1.nwikiproject = t2.nwikiproject " +
+                        "WHERE t1.is_long_term IS TRUE",
+                TableId.of(defaultDataset, "script_long_term_leavers_wp_edits_ts" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
+
+        // identify the time range of the last tcounts of each wikiproject
+        util.runQuery("SELECT t1.user_id AS user_id," +
+                        "t1.nwikiproject AS nwikiproject," +
+                        "t1.tcount AS tcount," +
+                        "t2.start_ts AS start_ts," +
+                        "t2.end_ts AS end_ts," +
+                        "FROM " + util.tableName(defaultDataset, "script_leavers_wp_tcount_acc_ns045_mbrship_length" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t1") +
+                        "INNER JOIN " + util.tableName(defaultDataset, "script_user_wp_revs_45_valid_users_wps_valid_range" + timeIntervalUnit, "t2") +
+                        "ON t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.tcount " +
+                        "WHERE t1.tcount = t1.last_tcount AND t1.is_long_term IS TRUE",
+                TableId.of(defaultDataset, "script_long_term_leavers_wp_last_tcounts" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
+
+        // identify the edits of long term editors in their last tcounts
+                util.runQuery("SELECT t1.user_id AS user_id," +
+                        "t2.user_text AS user_text," +
+                        "t1.nwikiproject AS nwikiproject," +
+                        "t2.wikiproject AS wikiproject," +
+                        "t2.timestamp AS timestamp," +
+                        "t2.ns AS ns," +
+                        "FROM " + util.tableName(defaultDataset, "script_long_term_leavers_wp_last_tcounts" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t1") +
+                        "INNER JOIN " + util.tableName("bowen_wikis_quitting", "lng_user_wikiproject_valid_revs_45", "t2") +
+                        "ON t1.user_id = t2.user_id AND t1.nwikiproject = t2.nwikiproject " +
+                        "WHERE t2.timestamp >= t1.start_ts AND t2.timestamp < t1.end_ts",
+                TableId.of(defaultDataset, "script_long_term_leavers_wp_edits_ts_last_tcounts" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
+
+        // Find the comments of those editors in the revision for short terms leavers
         util.runQuery("SELECT t1.user_text AS user_text," +
                         "t1.wikiproject AS wikiproject," +
                         "t1.timestamp AS timestamp," +
@@ -354,45 +345,45 @@ public class QuickstartSample {
                         "ON t1.user_text = t2.rev_user_text AND t1.timestamp = t2.rev_timestamp " +
                         "WHERE (t2.ns = 4 OR t2.ns = 5) AND t2.rev_comment IS NOT NULL",
                 TableId.of(defaultDataset, "script_short_term_leavers_wp_edits_comments" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
-//
-//        // Find the comments of those editors in the revision for long term leavers
-//        util.runQuery("SELECT t1.user_text AS user_text," +
-//                        "t1.wikiproject AS wikiproject," +
-//                        "t1.timestamp AS timestamp," +
-//                        "t1.ns AS ns," +
-//                        "t2.rev_comment AS rev_comment," +
-//                        "FROM " + util.tableName(defaultDataset, "script_long_term_leavers_wp_edits_ts" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t1") +
-//                        "INNER JOIN " + util.tableName("bowen_user_dropouts", "revs", "t2") +
-//                        "ON t1.user_text = t2.rev_user_text AND t1.timestamp = t2.rev_timestamp " +
-//                        "WHERE (t2.ns = 4 OR t2.ns = 5) AND t2.rev_comment IS NOT NULL",
-//                TableId.of(defaultDataset, "script_longer_term_leavers_wp_edits_comments" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
-//
-//        // Find the comments of those editors in the revision for long term leavers of edits in their last tcounts
-//        util.runQuery("SELECT t1.user_text AS user_text," +
-//                        "t1.wikiproject AS wikiproject," +
-//                        "t1.timestamp AS timestamp," +
-//                        "t1.ns AS ns," +
-//                        "t2.rev_comment AS rev_comment," +
-//                        "FROM " + util.tableName(defaultDataset, "script_long_term_leavers_wp_edits_ts_last_tcounts" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t1") +
-//                        "INNER JOIN " + util.tableName("bowen_user_dropouts", "revs", "t2") +
-//                        "ON t1.user_text = t2.rev_user_text AND t1.timestamp = t2.rev_timestamp " +
-//                        "WHERE (t2.ns = 4 OR t2.ns = 5) AND t2.rev_comment IS NOT NULL",
-//                TableId.of(defaultDataset, "script_longer_term_leavers_wp_edits_comments_last_tcounts" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
-//
-//        // select only the comments and for long term editors, picking 65,596 which is the number of short term leavers?
-//        util.runQuery("SELECT rev_comment," +
-//                        "FROM " + util.tableName(defaultDataset, "script_short_term_leavers_wp_edits_comments" + timeIntervalUnit + "edit" + monthlyEditingThreshold),
-//                TableId.of(defaultDataset, "script_short_term_leavers_wp_edits_comments_only" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
-//
-//        util.runQuery("SELECT rev_comment," +
-//                        "FROM " + util.tableName(defaultDataset, "script_longer_term_leavers_wp_edits_comments" + timeIntervalUnit + "edit" + monthlyEditingThreshold) +
-//                        "LIMIT 65596",
-//                TableId.of(defaultDataset, "script_long_term_leavers_wp_edits_comments_only" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
-//
-//        util.runQuery("SELECT rev_comment," +
-//                        "FROM " + util.tableName(defaultDataset, "script_longer_term_leavers_wp_edits_comments_last_tcounts" + timeIntervalUnit + "edit" + monthlyEditingThreshold) +
-//                        "LIMIT 65596",
-//                TableId.of(defaultDataset, "script_long_term_leavers_wp_edits_comments_last_tcounts_only" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
+
+        // Find the comments of those editors in the revision for long term leavers
+        util.runQuery("SELECT t1.user_text AS user_text," +
+                        "t1.wikiproject AS wikiproject," +
+                        "t1.timestamp AS timestamp," +
+                        "t1.ns AS ns," +
+                        "t2.rev_comment AS rev_comment," +
+                        "FROM " + util.tableName(defaultDataset, "script_long_term_leavers_wp_edits_ts" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t1") +
+                        "INNER JOIN " + util.tableName("bowen_user_dropouts", "revs", "t2") +
+                        "ON t1.user_text = t2.rev_user_text AND t1.timestamp = t2.rev_timestamp " +
+                        "WHERE (t2.ns = 4 OR t2.ns = 5) AND t2.rev_comment IS NOT NULL",
+                TableId.of(defaultDataset, "script_longer_term_leavers_wp_edits_comments" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
+
+        // Find the comments of those editors in the revision for long term leavers of edits in their last tcounts
+        util.runQuery("SELECT t1.user_text AS user_text," +
+                        "t1.wikiproject AS wikiproject," +
+                        "t1.timestamp AS timestamp," +
+                        "t1.ns AS ns," +
+                        "t2.rev_comment AS rev_comment," +
+                        "FROM " + util.tableName(defaultDataset, "script_long_term_leavers_wp_edits_ts_last_tcounts" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t1") +
+                        "INNER JOIN " + util.tableName("bowen_user_dropouts", "revs", "t2") +
+                        "ON t1.user_text = t2.rev_user_text AND t1.timestamp = t2.rev_timestamp " +
+                        "WHERE (t2.ns = 4 OR t2.ns = 5) AND t2.rev_comment IS NOT NULL",
+                TableId.of(defaultDataset, "script_longer_term_leavers_wp_edits_comments_last_tcounts" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
+
+        // select only the comments and for long term editors, picking 65,596 which is the number of short term leavers?
+        util.runQuery("SELECT rev_comment," +
+                        "FROM " + util.tableName(defaultDataset, "script_short_term_leavers_wp_edits_comments" + timeIntervalUnit + "edit" + monthlyEditingThreshold),
+                TableId.of(defaultDataset, "script_short_term_leavers_wp_edits_comments_only" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
+
+        util.runQuery("SELECT rev_comment," +
+                        "FROM " + util.tableName(defaultDataset, "script_longer_term_leavers_wp_edits_comments" + timeIntervalUnit + "edit" + monthlyEditingThreshold) +
+                        "LIMIT 65596",
+                TableId.of(defaultDataset, "script_long_term_leavers_wp_edits_comments_only" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
+
+        util.runQuery("SELECT rev_comment," +
+                        "FROM " + util.tableName(defaultDataset, "script_longer_term_leavers_wp_edits_comments_last_tcounts" + timeIntervalUnit + "edit" + monthlyEditingThreshold) +
+                        "LIMIT 65596",
+                TableId.of(defaultDataset, "script_long_term_leavers_wp_edits_comments_last_tcounts_only" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
 
         // create data for human coding
         util.runQuery("SELECT user_text," +
@@ -2910,88 +2901,4 @@ public class QuickstartSample {
             System.out.println("Having errors when writing out to the file.");
         }
     }
-
-//    private String util.tableName(String dataset, String table) {
-//        return dataset + "." + table + " ";
-//    }
-//
-//    private String util.tableName(String dataset, String table, String shortCut) {
-//        return dataset + "." + table + " AS " + shortCut + " ";
-//    }
-//
-//    // https://cloud.google.com/bigquery/querying-data#bigquery-sync-query-java
-//    private QueryResponse util.runQuery(String query, TableId destinationTable) throws Exception {
-//
-//        double startTime = System.currentTimeMillis();
-//
-//        QueryJobConfiguration configuration = QueryJobConfiguration.builder(query)
-//                .defaultDataset(DatasetId.of(destinationTable.dataset()))
-//                .destinationTable(destinationTable)
-//                .allowLargeResults(Boolean.TRUE)
-//                .flattenResults(Boolean.TRUE)
-//                .writeDisposition(JobInfo.WriteDisposition.WRITE_TRUNCATE) // overwrite
-//                .build();
-//        Job remoteJob = bigquery.create(JobInfo.of(configuration));
-//        remoteJob = remoteJob.waitFor();
-//
-//        QueryResponse response = bigquery.getQueryResults(remoteJob.jobId());
-//        while (!response.jobCompleted()) {
-//            Thread.sleep(10000);
-//            response = bigquery.getQueryResults(response.jobId());
-//        }
-//
-//        double endTime = System.currentTimeMillis();
-//        double totalTime = endTime - startTime;
-//
-//        if (response.hasErrors()) {
-//            throw new RuntimeException(
-//                    response
-//                            .executionErrors()
-//                            .stream()
-//                            .<String>map(err -> err.message())
-//                            .collect(Collectors.joining("\n")));
-//        }
-//
-//        System.out.printf("Table [%s.%s] created in %f seconds.%n", destinationTable.dataset(),
-//                destinationTable.table(),
-//                totalTime/1000);
-//
-//        return response;
-//    }
-//
-//    private QueryResponse util.runQuery(String query) throws Exception {
-//
-//        double startTime = System.currentTimeMillis();
-//
-//        QueryJobConfiguration configuration = QueryJobConfiguration.builder(query)
-//                .flattenResults(Boolean.TRUE)
-//                .writeDisposition(JobInfo.WriteDisposition.WRITE_TRUNCATE) // overwrite
-//                .build();
-//        Job remoteJob = bigquery.create(JobInfo.of(configuration));
-//        remoteJob = remoteJob.waitFor();
-//
-//        QueryResponse response = bigquery.getQueryResults(remoteJob.jobId());
-//        while (!response.jobCompleted()) {
-//            Thread.sleep(10000);
-//            response = bigquery.getQueryResults(response.jobId());
-//        }
-//
-//        double endTime = System.currentTimeMillis();
-//        double totalTime = endTime - startTime;
-//
-//        if (response.hasErrors()) {
-//            throw new RuntimeException(
-//                    response
-//                            .executionErrors()
-//                            .stream()
-//                            .<String>map(err -> err.message())
-//                            .collect(Collectors.joining("\n")));
-//        }
-//
-//        System.out.printf("Query [%s] executed in %f seconds.%n", query, totalTime/1000);
-//
-//        return response;
-//    }
-
-
 }
