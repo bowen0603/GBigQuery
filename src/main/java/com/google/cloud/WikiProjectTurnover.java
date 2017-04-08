@@ -129,12 +129,15 @@ public class WikiProjectTurnover {
 //        self.addLeaversAccumulatedProjectEditsInEachTcountWithinWPToResults();
 
 //        self.addProjectDeltaDVsToResults();
-//        self.addNewcomerPriorExperienceToResults();
+
 
 //        self.addLeaversAccumulatedProjectEditsInEachTcountWithinWPToResults();
-
-        self.identifyShortAndLongTermLeavers();
+//
+//        self.identifyShortAndLongTermLeavers();
 //        self.identityWikiProjectNewbies();
+
+        self.addNewcomerLeaverPriorExperienceToResults();
+        self.addNewcomerAccumulatedWikipediaEditsInEachTcountWithinWPToResults();
 
         System.out.println("Done .. ");
     }
@@ -409,6 +412,144 @@ public class WikiProjectTurnover {
 
 
     /**
+     * the accumulated amounts of edits made on the wikipedia before the newcomers joined
+     */
+    private void addNewcomerAccumulatedWikipediaEditsInEachTcountWithinWPToResults() throws Exception {
+        // sum up the total amount of edits in all the four categories (ns 0, 1, 4, 5)
+//        util.runQuery("SELECT rev_user_text AS user_text," +
+//                        "rev_user_id AS user_id," +
+//                        "ns AS ns," +
+//                        "rev_timestamp AS timestamp," +
+//                        "FROM " + util.tableName("bowen_user_dropouts", "revs") +
+//                        "WHERE ns = 0 OR ns = 1 OR ns = 4 OR ns = 5",
+//                TableId.of(defaultDataset, "script_user_edits_ns0145"));
+
+        // TODO: this should be simplied by calculating edits in each namespace and add them up
+        // select newcomers, and the time of each wikiproject tcounts
+        // edits on the articles within the scope of the project (ns0) - # of edits before joining the current tcount (include the edits before joining the project)
+//        util.runQuery("SELECT t1.user_id AS user_id," +
+//                        "t1.nwikiproject AS nwikiproject," +
+//                        "t1.tcount AS tcount," +
+//                        "t1.first_tcount AS first_tcount," +
+//                        "t1.last_tcount AS last_tcount," +
+//                        "t1.start_ts AS start_ts," +
+//                        "t1.end_ts AS end_ts," +
+//                        "t2.timestamp AS timestamp," +
+//                        "FROM " + util.tableName(defaultDataset, "script_editor_project_active_range_ts" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t1") +
+//                        "INNER JOIN " + util.tableName(defaultDataset, "script_user_edits_ns0145", "t2") +
+//                        "ON t1.user_id = t2.user_id " +
+////                        "WHERE t1.start_ts <= t2.timestamp AND t1.end_ts > timestamp", // range of edits & need to include newcomers
+//                        "WHERE t1.end_ts > t2.timestamp", // range of edits & need to include newcomers
+//                TableId.of(defaultDataset, "script_editor_project_active_range_edits_ns0145" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
+//
+//
+
+//        // aggregated edits of remaining members
+//        util.runQuery("SELECT user_id," +
+//                        "nwikiproject," +
+//                        "tcount," +
+//                        "COUNT(*) AS acc_edits0145," +
+//                        "FROM " + util.tableName(defaultDataset, "script_editor_project_active_range_edits_ns0145" + timeIntervalUnit + "edit" + monthlyEditingThreshold) +
+//                        "WHERE tcount != first_tcount " +
+//                        "GROUP BY user_id, nwikiproject, tcount",
+//                TableId.of(defaultDataset, "script_editor_remainings_project_active_range_acc_edits_ns0145" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
+//
+//        // median value of remaining members for each project
+//        util.runQuery("SELECT nwikiproject," +
+//                        "tcount," +
+//                        "NTH(501, QUANTILES(acc_edits0145, 1001)) AS median_acc_ns0145," + // median value to the lower side
+//                        "FROM " + util.tableName(defaultDataset, "script_editor_remainings_project_active_range_acc_edits_ns0145" + timeIntervalUnit + "edit" + monthlyEditingThreshold) +
+//                        "GROUP BY nwikiproject, tcount",
+//                TableId.of(defaultDataset, "script_wp_full_editor_acc_ns0145_median" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
+//
+//
+//        // aggregated edits of newcomers
+//        util.runQuery("SELECT user_id," +
+//                        "nwikiproject," +
+//                        "tcount," +
+//                        "COUNT(*) AS acc_edits0145," +
+//                        "FROM " + util.tableName(defaultDataset, "script_editor_project_active_range_edits_ns0145" + timeIntervalUnit + "edit" + monthlyEditingThreshold) +
+//                        "WHERE tcount = first_tcount " +
+//                        "GROUP BY user_id, nwikiproject, tcount",
+//                TableId.of(defaultDataset, "script_editor_newcomers_project_active_range_acc_edits_ns0145" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
+
+//        // identify newcomers first tcounts
+//        util.runQuery("SELECT t1.user_id AS user_id," +
+//                        "t1.nwikiproject AS nwikiproject," +
+//                        "t1.tcount AS tcount," +
+//                        "t1.acc_edits0145 AS acc_ns0145," +
+//                        "FROM " + util.tableName(defaultDataset, "script_editor_newcomers_project_active_range_acc_edits_ns0145" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t1") +
+//                        "INNER JOIN " + util.tableName(defaultDataset, "script_editor_project_active_range_ts" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t2") +
+//                        "ON t1.user_id = t2.user_id AND t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.tcount ",
+//                TableId.of(defaultDataset, "script_newcomers_wp_tcount_acc_ns0145" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
+//
+//        // mark productive/unproductive newcomers
+//        util.runQuery("SELECT t1.user_id AS user_id," +
+//                        "t1.nwikiproject AS nwikiproject," +
+//                        "t1.tcount AS tcount," +
+//                        "IF(t1.acc_ns0145 > t2.median_acc_ns0145, 1, 0) AS is_high_prod_newcomers," +
+//                        "IF(t1.acc_ns0145 <= t2.median_acc_ns0145, 1, 0) AS is_low_prod_newcomers," +
+//                        "FROM " + util.tableName(defaultDataset, "script_newcomers_wp_tcount_acc_ns0145" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t1") +
+//                        "INNER JOIN " + util.tableName(defaultDataset, "script_wp_full_editor_acc_ns0145_median" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t2") +
+//                        "ON t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.tcount",
+//                TableId.of(defaultDataset, "script_newcomers_wp_tcount_acc_ns0145_efficiency" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
+//
+//        // sum up four types of leavers - missing tcounts are those have no leavers
+//        util.runQuery("SELECT nwikiproject," +
+//                        "tcount," +
+//                        "SUM(is_high_prod_newcomers) AS high_prod_newcomers_nbr," +
+//                        "SUM(is_low_prod_newcomers) AS low_prod_newcomers_nbr," +
+//                        "FROM " + util.tableName(defaultDataset, "script_newcomers_wp_tcount_acc_ns0145_efficiency" + timeIntervalUnit + "edit" + monthlyEditingThreshold) +
+//                        "GROUP BY nwikiproject, tcount",
+//                TableId.of(defaultDataset, "script_wp_tcount_acc_ns0145_newcomers_prod" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
+
+
+        util.runQuery("SELECT t1.nwikiproject AS nwikiproject," +
+                        "t1.wikiproject AS wikiproject," +
+                        "t1.tcount AS tcount," +
+                        "t1.pre_tcount AS pre_tcount," +
+                        "t1.newbies_nbr AS newbies_nbr," +
+                        "t1.newcomers_nbr AS newcomers_nbr," +
+                        "t1.nbr_committed_newcomers AS nbr_committed_newcomers," +
+                        "t1.nbr_committed_leavers AS nbr_committed_leavers," +
+                        "IFNULL(t2.high_prod_newcomers_nbr, 0) nbr_prod_newcomers," +
+                        "IFNULL(t2.low_prod_newcomers_nbr, 0) nbr_low_newcomers," +
+                        "t1.leavers_nbr AS leavers_nbr," +
+                        "t1.high_short_leavers_nbr AS high_short_leavers_nbr," +
+                        "t1.high_long_leavers_nbr AS high_long_leavers_nbr," +
+                        "t1.low_short_leavers_nbr AS low_short_leavers_nbr," +
+                        "t1.low_long_leavers_nbr AS low_long_leavers_nbr," +
+                        "t1.remainings_nbr AS remainings_nbr," +
+                        "t1.remainings_prod0 AS remainings_prod0," +
+                        "t1.remainings_coors45 AS remainings_coors45," +
+                        "t1.remainings_art_comm1 AS remainings_art_comm1," +
+                        "t1.remainings_user_comm3 AS remainings_user_comm3," +
+                        "t1.superficial_leavers_cnt AS superficial_leavers_cnt," +
+                        "t1.substantive_leavers_cnt AS substantive_leavers_cnt," +
+                        "t1.wp_tenure AS wp_tenure," +
+                        "t1.avg_substantive_leaver_tenure AS avg_substantive_leaver_tenure," +
+                        "t1.avg_last_tcount_ns0_edits AS avg_last_tcount_ns0_edits," +
+                        "t1.avg_last_tcount_ns45_edits AS avg_last_tcount_ns45_edits," +
+                        "t1.project_prod0 AS project_prod0," +
+                        "t1.project_coor4 AS project_coor4," +
+                        "t1.project_coor5 AS project_coor5," +
+                        "t1.project_coors45 AS project_coors45," +
+                        "t1.project_art_comm1 AS project_art_comm1," +
+                        "t1.project_user_comm3 AS project_user_comm3," +
+                        "t1.pre_project_prod0 AS pre_project_prod0," +
+                        "t1.pre_project_coors45 AS pre_project_coors45," +
+                        "t1.delta_prod0 AS delta_prod0," +
+                        "t1.delta_coors45 AS delta_coors45," +
+                        "FROM " + util.tableName(defaultDataset, "script_results_wp_ivs_cvs_group_abv0_dltDVs_committed_newcomers_leavers"+timeIntervalUnit+"edit"+monthlyEditingThreshold, "t1") +
+                        "INNER JOIN " + util.tableName(defaultDataset, "script_wp_tcount_acc_ns0145_newcomers_prod"+timeIntervalUnit+"edit"+monthlyEditingThreshold, "t2") +
+                        "ON t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.tcount " +
+                        "ORDER BY nwikiproject, tcount",
+                TableId.of(defaultDataset, "script_results_wp_ivs_cvs_group_abv0_dltDVs_committed_prod_newcomers_leavers"+timeIntervalUnit+"edit"+monthlyEditingThreshold));
+
+    }
+
+
+    /**
      * the accumulated amount of edits the editor made on project articles and project page
      */
     private void addLeaversAccumulatedProjectEditsInEachTcountWithinWPToResults() throws Exception {
@@ -615,83 +756,155 @@ public class WikiProjectTurnover {
     /**
      * # of wikiproject the newcomer joined before joining the current project
      */
-    private void addNewcomerPriorExperienceToResults() throws Exception {
+    private void addNewcomerLeaverPriorExperienceToResults() throws Exception {
 
 
-        // select the prior wikiprojects joined before joining the focal project
-        util.runQuery("SELECT t1.user_id AS user_id," +
-                        "t1.nwikiproject AS nwikiproject," +
-                        "t1.first_tcount AS focal_first_tcount," +
-                        "t2.nwikiproject AS prior_nwikiproject," +
-                        "FROM " + util.tableName(defaultDataset, "script_user_wp_active_range_revs45" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t1") +
-                        "INNER JOIN " + util.tableName(defaultDataset, "script_user_wp_active_range_revs45" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t2") +
-                        "ON t1.user_id = t2.user_id " +
-                        "WHERE t1.first_tcount > t2.tcount",
-                TableId.of(defaultDataset, "script_user_wp_prior_wps" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
-
-        util.runQuery("SELECT user_id," +
-                        "nwikiproject," +
-                        "COUNT(*) AS prior_wp_cnt," +
-                        "FROM " + util.tableName(defaultDataset, "script_user_wp_prior_wps" + timeIntervalUnit + "edit" + monthlyEditingThreshold) +
-                        "GROUP BY user_id, nwikiproject " +
-                        "ORDER BY user_id, nwikiproject",
-                TableId.of(defaultDataset, "script_user_wp_prior_wps_cnt" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
-
-        util.runQuery("SELECT t1.user_id AS user_id," +
-                        "t1.nwikiproject AS nwikiproject," +
-//                        "IFNULL(t2.prior_wp_cnt, 0) AS prior_wp_cnt," +
-                        "IF(t2.user_id IS NULL AND t2.nwikiproject IS NULL, 0, t2.prior_wp_cnt) AS prior_wp_cnt," +
-                        "FROM " + util.tableName(defaultDataset, "script_user_wp_first_last_tcounts" + timeIntervalUnit + "edits" + monthlyEditingThreshold, "t1") +
-                        "LEFT JOIN " + util.tableName(defaultDataset, "script_user_wp_prior_wps_cnt" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t2") +
-                "ON t1.user_id = t2.user_id AND t1.nwikiproject = t2.nwikiproject",
-                TableId.of(defaultDataset, "script_user_wp_prior_wps_cnt_full" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
-
-        // identify newcomers
-        util.runQuery("SELECT user_id," +
-                        "nwikiproject," +
-                        "tcount," +
-                        "FROM " + util.tableName(defaultDataset, "script_user_wp_active_range_revs45" + timeIntervalUnit + "edit" + monthlyEditingThreshold) +
-                        "WHERE tcount = first_tcount",
-                TableId.of(defaultDataset, "script_wp_newcomers_tcount" + timeIntervalUnit+"edit"+monthlyEditingThreshold));
-
-        // binarize the number of projects joined for the editor has or doesn't have prior experience for newcomers
-        util.runQuery("SELECT t1.user_id AS user_id," +
-                        "t1.nwikiproject AS nwikiproject," +
-                        "t1.tcount AS tcount," +
-                        "t2.prior_wp_cnt AS prior_wp_cnt," +
-                        "IF(t2.prior_wp_cnt > 0, 1, 0) AS has_prior_wp," +
-                        "FROM " + util.tableName(defaultDataset, "script_wp_newcomers_tcount" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t1") +
-                        "INNER JOIN " + util.tableName(defaultDataset, "script_user_wp_prior_wps_cnt_full" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t2") +
-                        "ON t1.user_id = t2.user_id AND t1.nwikiproject = t2.nwikiproject",
-                TableId.of(defaultDataset, "script_newcomer_prior_wp_experience" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
-
-        // # of experienced newcomers for each wikiproject in each time interval
-        util.runQuery("SELECT nwikiproject," +
-                        "tcount," +
-                        "COUNT(UNIQUE(user_id)) AS nbr_exp_newcomers," +
-                        "FROM " + util.tableName(defaultDataset, "script_newcomer_prior_wp_experience" + timeIntervalUnit + "edit" + monthlyEditingThreshold) +
-                        "WHERE has_prior_wp = 1 " +
-                        "GROUP BY nwikiproject, tcount",
-                TableId.of(defaultDataset, "script_wp_experienced_newcomers" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
-
+//        // compute for newcomers
+//        // select the prior wikiprojects joined before joining the focal project
+//        util.runQuery("SELECT t1.user_id AS user_id," +
+//                        "t1.nwikiproject AS nwikiproject," +
+//                        "t1.first_tcount AS focal_first_tcount," +
+//                        "t2.nwikiproject AS prior_nwikiproject," +
+//                        "FROM " + util.tableName(defaultDataset, "script_user_wp_active_range_revs45" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t1") +
+//                        "INNER JOIN " + util.tableName(defaultDataset, "script_user_wp_active_range_revs45" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t2") +
+//                        "ON t1.user_id = t2.user_id " +
+//                        "WHERE t1.first_tcount > t2.tcount",
+//                TableId.of(defaultDataset, "script_user_wp_prior_wps" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
+//
+//        util.runQuery("SELECT user_id," +
+//                        "nwikiproject," +
+//                        "COUNT(*) AS prior_wp_cnt," +
+//                        "FROM " + util.tableName(defaultDataset, "script_user_wp_prior_wps" + timeIntervalUnit + "edit" + monthlyEditingThreshold) +
+//                        "GROUP BY user_id, nwikiproject " +
+//                        "ORDER BY user_id, nwikiproject",
+//                TableId.of(defaultDataset, "script_user_wp_prior_wps_cnt" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
+//
+//        util.runQuery("SELECT t1.user_id AS user_id," +
+//                        "t1.nwikiproject AS nwikiproject," +
+////                        "IFNULL(t2.prior_wp_cnt, 0) AS prior_wp_cnt," +
+//                        "IF(t2.user_id IS NULL AND t2.nwikiproject IS NULL, 0, t2.prior_wp_cnt) AS prior_wp_cnt," +
+//                        "FROM " + util.tableName(defaultDataset, "script_user_wp_first_last_tcounts" + timeIntervalUnit + "edits" + monthlyEditingThreshold, "t1") +
+//                        "LEFT JOIN " + util.tableName(defaultDataset, "script_user_wp_prior_wps_cnt" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t2") +
+//                "ON t1.user_id = t2.user_id AND t1.nwikiproject = t2.nwikiproject",
+//                TableId.of(defaultDataset, "script_user_wp_prior_wps_cnt_full" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
+//
+//        // identify newcomers
+//        util.runQuery("SELECT user_id," +
+//                        "nwikiproject," +
+//                        "tcount," +
+//                        "FROM " + util.tableName(defaultDataset, "script_user_wp_active_range_revs45" + timeIntervalUnit + "edit" + monthlyEditingThreshold) +
+//                        "WHERE tcount = first_tcount",
+//                TableId.of(defaultDataset, "script_wp_newcomers_tcount" + timeIntervalUnit+"edit"+monthlyEditingThreshold));
+//
+//        // binarize the number of projects joined for the editor has or doesn't have prior experience for newcomers
+//        util.runQuery("SELECT t1.user_id AS user_id," +
+//                        "t1.nwikiproject AS nwikiproject," +
+//                        "t1.tcount AS tcount," +
+//                        "t2.prior_wp_cnt AS prior_wp_cnt," +
+//                        "IF(t2.prior_wp_cnt > 0, 1, 0) AS has_prior_wp," +
+//                        "FROM " + util.tableName(defaultDataset, "script_wp_newcomers_tcount" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t1") +
+//                        "INNER JOIN " + util.tableName(defaultDataset, "script_user_wp_prior_wps_cnt_full" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t2") +
+//                        "ON t1.user_id = t2.user_id AND t1.nwikiproject = t2.nwikiproject",
+//                TableId.of(defaultDataset, "script_newcomer_prior_wp_experience" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
+//
+//        // # of experienced newcomers for each wikiproject in each time interval
+//        util.runQuery("SELECT nwikiproject," +
+//                        "tcount," +
+//                        "COUNT(UNIQUE(user_id)) AS nbr_exp_newcomers," +
+//                        "FROM " + util.tableName(defaultDataset, "script_newcomer_prior_wp_experience" + timeIntervalUnit + "edit" + monthlyEditingThreshold) +
+//                        "WHERE has_prior_wp = 1 " +
+//                        "GROUP BY nwikiproject, tcount",
+//                TableId.of(defaultDataset, "script_wp_experienced_newcomers" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
+//
+//        // fill with the full range of the project
+//        util.runQuery("SELECT t1.nwikiproject AS nwikiproject," +
+//                        "t1.tcount AS tcount," +
+//                        "IF(t2.nwikiproject IS NULL AND t2.tcount IS NULL, 0, t2.nbr_exp_newcomers) AS nbr_exp_newcomers," +
+//                        "FROM " + util.tableName(defaultDataset, "script_user_wp_revs_45_valid_users_wps_valid_range" + timeIntervalUnit, "t1") +
+//                        "LEFT JOIN " + util.tableName(defaultDataset, "script_wp_experienced_newcomers" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t2") +
+//                        "ON t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.tcount",
+//                TableId.of(defaultDataset, "script_wp_experienced_newcomers_full_tcounts" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
+//
+//        // compute for leavers
+//        // select the prior wikiprojects joined before joining the focal project
+//        util.runQuery("SELECT t1.user_id AS user_id," +
+//                        "t1.nwikiproject AS nwikiproject," +
+//                        "t1.last_tcount AS focal_last_tcount," +
+//                        "t2.nwikiproject AS prior_nwikiproject," +
+//                        "FROM " + util.tableName(defaultDataset, "script_user_wp_active_range_revs45" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t1") +
+//                        "INNER JOIN " + util.tableName(defaultDataset, "script_user_wp_active_range_revs45" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t2") +
+//                        "ON t1.user_id = t2.user_id " +
+//                        "WHERE t1.last_tcount > t2.tcount",
+//                TableId.of(defaultDataset, "script_user_wp_leaving_prior_wps" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
+//
+//        util.runQuery("SELECT user_id," +
+//                        "nwikiproject," +
+//                        "COUNT(*) AS prior_wp_cnt," +
+//                        "FROM " + util.tableName(defaultDataset, "script_user_wp_leaving_prior_wps" + timeIntervalUnit + "edit" + monthlyEditingThreshold) +
+//                        "GROUP BY user_id, nwikiproject " +
+//                        "ORDER BY user_id, nwikiproject",
+//                TableId.of(defaultDataset, "script_user_leaving_wp_prior_wps_cnt" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
+//
+//        util.runQuery("SELECT t1.user_id AS user_id," +
+//                        "t1.nwikiproject AS nwikiproject," +
+////                        "IFNULL(t2.prior_wp_cnt, 0) AS prior_wp_cnt," +
+//                        "IF(t2.user_id IS NULL AND t2.nwikiproject IS NULL, 0, t2.prior_wp_cnt) AS prior_wp_cnt," +
+//                        "FROM " + util.tableName(defaultDataset, "script_user_wp_first_last_tcounts" + timeIntervalUnit + "edits" + monthlyEditingThreshold, "t1") +
+//                        "LEFT JOIN " + util.tableName(defaultDataset, "script_user_leaving_wp_prior_wps_cnt" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t2") +
+//                        "ON t1.user_id = t2.user_id AND t1.nwikiproject = t2.nwikiproject",
+//                TableId.of(defaultDataset, "script_user_leaving_wp_prior_wps_cnt_full" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
+//
+//        // identify leavers
+//        util.runQuery("SELECT user_id," +
+//                        "nwikiproject," +
+//                        "tcount," +
+//                        "FROM " + util.tableName(defaultDataset, "script_user_wp_active_range_revs45" + timeIntervalUnit + "edit" + monthlyEditingThreshold) +
+//                        "WHERE tcount = last_tcount",
+//                TableId.of(defaultDataset, "script_wp_leaver_tcount" + timeIntervalUnit+"edit"+monthlyEditingThreshold));
+//
+//        // binarize the number of projects joined for the editor has or doesn't have prior experience for newcomers
+//        util.runQuery("SELECT t1.user_id AS user_id," +
+//                        "t1.nwikiproject AS nwikiproject," +
+//                        "t1.tcount AS tcount," +
+//                        "t2.prior_wp_cnt AS prior_wp_cnt," +
+//                        "IF(t2.prior_wp_cnt > 0, 1, 0) AS has_prior_wp," +
+//                        "FROM " + util.tableName(defaultDataset, "script_wp_leaver_tcount" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t1") +
+//                        "INNER JOIN " + util.tableName(defaultDataset, "script_user_leaving_wp_prior_wps_cnt_full" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t2") +
+//                        "ON t1.user_id = t2.user_id AND t1.nwikiproject = t2.nwikiproject",
+//                TableId.of(defaultDataset, "script_leaver_prior_wp_experience" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
+//
+//        // # of experienced leavers for each wikiproject in each time interval
+//        util.runQuery("SELECT nwikiproject," +
+//                        "tcount," +
+//                        "COUNT(UNIQUE(user_id)) AS nbr_exp_leavers," +
+//                        "FROM " + util.tableName(defaultDataset, "script_leaver_prior_wp_experience" + timeIntervalUnit + "edit" + monthlyEditingThreshold) +
+//                        "WHERE has_prior_wp = 1 " +
+//                        "GROUP BY nwikiproject, tcount",
+//                TableId.of(defaultDataset, "script_wp_experienced_leavers" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
+//
         // fill with the full range of the project
         util.runQuery("SELECT t1.nwikiproject AS nwikiproject," +
                         "t1.tcount AS tcount," +
-                        "IF(t2.nwikiproject IS NULL AND t2.tcount IS NULL, 0, t2.nbr_exp_newcomers) AS nbr_exp_newcomers," +
+                        "(t1.tcount+1) AS leaving_tcount," +
+                        "IF(t2.nwikiproject IS NULL AND t2.tcount IS NULL, 0, t2.nbr_exp_leavers) AS nbr_committed_leavers," +
                         "FROM " + util.tableName(defaultDataset, "script_user_wp_revs_45_valid_users_wps_valid_range" + timeIntervalUnit, "t1") +
-                        "LEFT JOIN " + util.tableName(defaultDataset, "script_wp_experienced_newcomers" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t2") +
+                        "LEFT JOIN " + util.tableName(defaultDataset, "script_wp_experienced_leavers" + timeIntervalUnit + "edit" + monthlyEditingThreshold, "t2") +
                         "ON t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.tcount",
-                TableId.of(defaultDataset, "script_wp_experienced_newcomers_full_tcounts" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
+                TableId.of(defaultDataset, "script_wp_committed_leavers_full_tcounts" + timeIntervalUnit + "edit" + monthlyEditingThreshold));
 
-
-        // merge into result table
+        // merge into the updated result table
         util.runQuery("SELECT t1.nwikiproject AS nwikiproject," +
                         "t1.wikiproject AS wikiproject," +
                         "t1.tcount AS tcount," +
                         "t1.pre_tcount AS pre_tcount," +
+                        "t1.newbies_nbr AS newbies_nbr," +
                         "t1.newcomers_nbr AS newcomers_nbr," +
-                        "IFNULL(t2.nbr_exp_newcomers, 0) AS nbr_exp_newcomers," +
+                        "IFNULL(t2.nbr_exp_newcomers, 0) AS nbr_committed_newcomers," +
                         "t1.leavers_nbr AS leavers_nbr," +
+                        "t1.high_short_leavers_nbr AS high_short_leavers_nbr," +
+                        "t1.high_long_leavers_nbr AS high_long_leavers_nbr," +
+                        "t1.low_short_leavers_nbr AS low_short_leavers_nbr," +
+                        "t1.low_long_leavers_nbr AS low_long_leavers_nbr," +
                         "t1.remainings_nbr AS remainings_nbr," +
                         "t1.remainings_prod0 AS remainings_prod0," +
                         "t1.remainings_coors45 AS remainings_coors45," +
@@ -713,11 +926,52 @@ public class WikiProjectTurnover {
                         "t1.pre_project_coors45 AS pre_project_coors45," +
                         "t1.delta_prod0 AS delta_prod0," +
                         "t1.delta_coors45 AS delta_coors45," +
-                        "FROM " + util.tableName(defaultDataset, "script_results_wp_ivs_cvs_group_abv0_dltDVs"+timeIntervalUnit+"edit"+monthlyEditingThreshold, "t1") +
+                        "FROM " + util.tableName(defaultDataset, "script_results_wp_ivs_cvs_group_abv0_dltDVs_all_newcomers_leavers"+timeIntervalUnit+"edit"+monthlyEditingThreshold, "t1") +
                         "INNER JOIN " + util.tableName(defaultDataset, "script_wp_experienced_newcomers_full_tcounts"+timeIntervalUnit+"edit"+monthlyEditingThreshold, "t2") +
                         "ON t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.tcount " +
                         "ORDER BY nwikiproject, tcount",
-                TableId.of(defaultDataset, "script_results_wp_ivs_cvs_group_abv0_dltDVs_newcomers"+timeIntervalUnit+"edit"+monthlyEditingThreshold));
+                TableId.of(defaultDataset, "script_results_wp_ivs_cvs_group_abv0_dltDVs_committed_newcomers"+timeIntervalUnit+"edit"+monthlyEditingThreshold));
+
+
+        util.runQuery("SELECT t1.nwikiproject AS nwikiproject," +
+                        "t1.wikiproject AS wikiproject," +
+                        "t1.tcount AS tcount," +
+                        "t1.pre_tcount AS pre_tcount," +
+                        "t1.newbies_nbr AS newbies_nbr," +
+                        "t1.newcomers_nbr AS newcomers_nbr," +
+                        "t1.nbr_committed_newcomers AS nbr_committed_newcomers," +
+                        "IFNULL(t2.nbr_committed_leavers, 0) AS nbr_committed_leavers," +
+                        "t1.leavers_nbr AS leavers_nbr," +
+                        "t1.high_short_leavers_nbr AS high_short_leavers_nbr," +
+                        "t1.high_long_leavers_nbr AS high_long_leavers_nbr," +
+                        "t1.low_short_leavers_nbr AS low_short_leavers_nbr," +
+                        "t1.low_long_leavers_nbr AS low_long_leavers_nbr," +
+                        "t1.remainings_nbr AS remainings_nbr," +
+                        "t1.remainings_prod0 AS remainings_prod0," +
+                        "t1.remainings_coors45 AS remainings_coors45," +
+                        "t1.remainings_art_comm1 AS remainings_art_comm1," +
+                        "t1.remainings_user_comm3 AS remainings_user_comm3," +
+                        "t1.superficial_leavers_cnt AS superficial_leavers_cnt," +
+                        "t1.substantive_leavers_cnt AS substantive_leavers_cnt," +
+                        "t1.wp_tenure AS wp_tenure," +
+                        "t1.avg_substantive_leaver_tenure AS avg_substantive_leaver_tenure," +
+                        "t1.avg_last_tcount_ns0_edits AS avg_last_tcount_ns0_edits," +
+                        "t1.avg_last_tcount_ns45_edits AS avg_last_tcount_ns45_edits," +
+                        "t1.project_prod0 AS project_prod0," +
+                        "t1.project_coor4 AS project_coor4," +
+                        "t1.project_coor5 AS project_coor5," +
+                        "t1.project_coors45 AS project_coors45," +
+                        "t1.project_art_comm1 AS project_art_comm1," +
+                        "t1.project_user_comm3 AS project_user_comm3," +
+                        "t1.pre_project_prod0 AS pre_project_prod0," +
+                        "t1.pre_project_coors45 AS pre_project_coors45," +
+                        "t1.delta_prod0 AS delta_prod0," +
+                        "t1.delta_coors45 AS delta_coors45," +
+                        "FROM " + util.tableName(defaultDataset, "script_results_wp_ivs_cvs_group_abv0_dltDVs_committed_newcomers"+timeIntervalUnit+"edit"+monthlyEditingThreshold, "t1") +
+                        "INNER JOIN " + util.tableName(defaultDataset, "script_wp_committed_leavers_full_tcounts"+timeIntervalUnit+"edit"+monthlyEditingThreshold, "t2") +
+                        "ON t1.nwikiproject = t2.nwikiproject AND t1.tcount = t2.leaving_tcount " +
+                        "ORDER BY nwikiproject, tcount",
+                TableId.of(defaultDataset, "script_results_wp_ivs_cvs_group_abv0_dltDVs_committed_newcomers_leavers"+timeIntervalUnit+"edit"+monthlyEditingThreshold));
 
 
     }
