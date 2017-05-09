@@ -136,12 +136,289 @@ public class WikiProjectTurnover {
 //        self.identifyShortAndLongTermLeavers();
 //        self.identityWikiProjectNewbies();
 
-        self.addNewcomerLeaverPriorExperienceToResults();
-        self.addNewcomerAccumulatedWikipediaEditsInEachTcountWithinWPToResults();
+//        self.addNewcomerLeaverPriorExperienceToResults();
+//        self.addNewcomerAccumulatedWikipediaEditsInEachTcountWithinWPToResults();
+//        self.allWikipediaUserSurvivialAnalysis();
+
+
+//        self.analysisOnEditorActivityAfterJoining();
+
+//        self.createProjectCreationPeriod();
+
+        self.fetchArticleTitles();
 
         System.out.println("Done .. ");
     }
 
+    private void fetchArticleTitles() throws Exception {
+
+//        util.runQuery("select rev_page_title as article_name, " +
+//                            "rev_user_id as user_id, " +
+//                            "rev_timestamp, " +
+//                            "from " +
+//                            util.tableName("bowen_user_dropouts", "revs") +
+//                            "where ns in (0, 1, 3, 4, 5)",
+//                    TableId.of("ExperiencedNewcomers", "revs_articlenames_subset_01345"));
+//
+//        util.runQuery("select *, " +
+//                        "3 as ns, " +
+//                        "from [robert-kraut-1234:ExperiencedNewcomers.wikiproject_revs_3_valid_users_valid_proj]",
+//                TableId.of("ExperiencedNewcomers", "wp_revs_3_valid_users_valid_proj"));
+//
+//        util.runQuery("select user_id, " +
+//                            "nwikiproject, " +
+//                            "wikiproject, " +
+//                            "timestamp, " +
+//                            "ns," +
+//                            "from " +
+//                            "[robert-kraut-1234:ExperiencedNewcomers.wikiproject_revs_0145_valid_users_valid_proj], " +
+//                            "[robert-kraut-1234:ExperiencedNewcomers.wp_revs_3_valid_users_valid_proj]",
+//                TableId.of("ExperiencedNewcomers", "revs_01345_valid_users_valid_proj"));
+
+        // select a subset of users
+//        util.runQuery("SELECT UNIQUE(user_id) AS user_id," +
+//                        "FROM " + util.tableName("ExperiencedNewcomers", "revs_01345_valid_users_valid_proj"),
+//                TableId.of("ExperiencedNewcomers", "unique_users"));
+//
+//        util.runQuery("SELECT user_id," +
+//                            "RAND(1000) AS rand," +
+//                            "FROM " + util.tableName("ExperiencedNewcomers", "unique_users") +
+//                            "ORDER BY rand " +
+//                            "LIMIT 1000",
+//                TableId.of("ExperiencedNewcomers", "random_subset_users1000"));
+
+
+        util.runQuery("SELECT t1.user_id AS user_id," +
+                        "t1.nwikiproject AS nwikiproject," +
+                        "t1.wikiproject AS wikiproject," +
+                        "t1.timestamp AS timestamp," +
+                        "t1.ns AS ns," +
+                        "FROM " + util.tableName("ExperiencedNewcomers", "revs_01345_valid_users_valid_proj", "t1") +
+                        "INNER JOIN " + util.tableName("ExperiencedNewcomers", "random_subset_users1000", "t2") +
+                        "ON t1.user_id = t2.user_id",
+                TableId.of("ExperiencedNewcomers", "revs_01345_valid_users_valid_proj_sampled_users"));
+
+        util.runQuery("select * from " +
+                        "[robert-kraut-1234:ExperiencedNewcomers.revs_01345_valid_users_valid_proj_sampled_users] " +
+                        " order by user_id, nwikiproject, timestamp",
+                TableId.of("ExperiencedNewcomers", "revs_01345_valid_users_valid_proj_ordered"));
+
+        util.runQuery("select * from (select *, ROW_NUMBER() OVER (PARTITION BY user_id, nwikiproject " +
+                "ORDER BY user_id, nwikiproject, timestamp) as pos FROM " +
+//         "[robert-kraut-1234:ExperiencedNewcomers.revs_01345_valid_users_valid_proj] " +
+                        "[robert-kraut-1234:ExperiencedNewcomers.revs_01345_valid_users_valid_proj_ordered] " +
+                "order by user_id, nwikiproject, timestamp) where pos <= 10",
+                TableId.of("ExperiencedNewcomers", "revs_01345_valid_users_valid_proj_first10edits"));
+
+
+
+        util.runQuery("select t1.user_id as user_id, t1.nwikiproject as nwikiproject, " +
+                "t1.wikiproject as wikiproject, t2.article_name, t1.timestamp as timestamp, " +
+                "FORMAT_UTC_USEC(t1.timestamp) as " +
+                "hr_timestamp FROM " +
+        util.tableName("ExperiencedNewcomers", "revs_01345_valid_users_valid_proj_first10edits", "t1")
+        + " inner join " +
+        util.tableName("ExperiencedNewcomers", "revs_articlenames_subset_01345", "t2") +
+        " on t1.user_id = t2.user_id and t1.timestamp = t2.rev_timestamp",
+        TableId.of("ExperiencedNewcomers", "top5edits_articlenames_hr_timestamps"));
+    }
+
+
+    private void createProjectCreationPeriod() throws Exception {
+
+//        // locate the tcount of the first edit timestamp
+//        util.runQuery("SELECT nwikiproject," +
+//                        "MIN(tcount) AS creation_tcount," +
+//                        "FROM " + util.tableName(defaultDataset, "script_user_wp_revs_45_valid_users_wps_valid_range"+timeIntervalUnit) +
+//                        "GROUP BY nwikiproject",
+//                TableId.of(defaultDataset, "project_creation_date_tcount"+timeIntervalUnit));
+//
+//        // identify valid projects
+//        util.runQuery("SELECT t1.nwikiproject AS nwikiproject," +
+//                        "t1.creation_tcount AS creation_tcount," +
+//                        "FROM " + util.tableName(defaultDataset, "project_creation_date_tcount"+timeIntervalUnit, "t1") +
+//                        "INNER JOIN " + util.tableName(defaultDataset, "wp_valid_tcounts", "t2") +
+//                        "ON t1.nwikiproject = t2.nwikiproject",
+//                TableId.of(defaultDataset, "validproject_creation_date_tcount"+timeIntervalUnit));
+//
+//        // merge into the large table
+//        util.runQuery("SELECT t1.nwikiproject AS nwikiproject," +
+//                        "t1.wikiproject AS wikiproject," +
+//                        "t1.tcount AS tcount," +
+//                        "t1.pre_tcount AS pre_tcount," +
+//                        "t1.newbies_nbr AS newbies_nbr," +
+//                        "t1.newcomers_nbr AS newcomers_nbr," +
+//                        "t1.nbr_exp_newcomers AS nbr_exp_newcomers," +
+//                        "t1.leavers_nbr AS leavers_nbr," +
+//                        "t1.high_short_leavers_nbr AS high_short_leavers_nbr," +
+//                        "t1.high_long_leavers_nbr AS high_long_leavers_nbr," +
+//                        "t1.low_short_leavers_nbr AS low_short_leavers_nbr," +
+//                        "t1.low_long_leavers_nbr AS low_long_leavers_nbr," +
+//                        "t1.remainings_nbr AS remainings_nbr," +
+//                        "t1.remainings_prod0 AS remainings_prod0," +
+//                        "t1.remainings_coors45 AS remainings_coors45," +
+//                        "t1.remainings_art_comm1 AS remainings_art_comm1," +
+//                        "t1.remainings_user_comm3 AS remainings_user_comm3," +
+//                        "t1.superficial_leavers_cnt AS superficial_leavers_cnt," +
+//                        "t1.substantive_leavers_cnt AS substantive_leavers_cnt," +
+//                        "t1.wp_tenure AS wp_tenure," +
+//                        "t1.avg_substantive_leaver_tenure AS avg_substantive_leaver_tenure," +
+//                        "t1.avg_last_tcount_ns0_edits AS avg_last_tcount_ns0_edits," +
+//                        "t1.avg_last_tcount_ns45_edits AS avg_last_tcount_ns45_edits," +
+//                        "t1.project_prod0 AS project_prod0," +
+//                        "t1.project_coor4 AS project_coor4," +
+//                        "t1.project_coor5 AS project_coor5," +
+//                        "t1.project_coors45 AS project_coors45," +
+//                        "t1.project_art_comm1 AS project_art_comm1," +
+//                        "t1.project_user_comm3 AS project_user_comm3," +
+//                        "t1.pre_project_prod0 AS pre_project_prod0," +
+//                        "t1.pre_project_coors45 AS pre_project_coors45," +
+//                        "t1.delta_prod0 AS delta_prod0," +
+//                        "t1.delta_coors45 AS delta_coors45," +
+//                        "t2.creation_tcount AS creation_tcount," +
+//                        "FROM " + util.tableName(defaultDataset, "script_results_wp_ivs_cvs_group_abv0_dltDVs_all_newcomers_leavers"+timeIntervalUnit+"edit"+monthlyEditingThreshold, "t1") +
+//                        "LEFT JOIN " + util.tableName(defaultDataset, "validproject_creation_date_tcount"+timeIntervalUnit, "t2") +
+//                        "ON t1.nwikiproject = t2.nwikiproject " +
+//                        "ORDER BY nwikiproject, tcount",
+//                TableId.of(defaultDataset, "script_results_final"+timeIntervalUnit+"edit"+monthlyEditingThreshold));
+
+        util.runQuery("SELECT t1.nwikiproject AS nwikiproject," +
+                        "t1.wikiproject AS wikiproject," +
+                        "t1.tcount AS tcount," +
+                        "t1.pre_tcount AS pre_tcount," +
+                        "t1.newbies_nbr AS newbies_nbr," +
+                        "t1.newcomers_nbr AS newcomers_nbr," +
+                        "t1.nbr_committed_newcomers AS nbr_committed_newcomers," +
+                        "t1.nbr_committed_leavers AS nbr_committed_leavers," +
+                        "t1.nbr_prod_newcomers AS nbr_high_prod_newcomers," +
+                        "t1.nbr_low_newcomers AS nbr_low_prod_newcomers," +
+                        "t1.leavers_nbr AS leavers_nbr," +
+                        "t1.high_short_leavers_nbr AS high_short_leavers_nbr," +
+                        "t1.high_long_leavers_nbr AS high_long_leavers_nbr," +
+                        "t1.low_short_leavers_nbr AS low_short_leavers_nbr," +
+                        "t1.low_long_leavers_nbr AS low_long_leavers_nbr," +
+                        "t1.remainings_nbr AS remainings_nbr," +
+                        "t1.remainings_prod0 AS remainings_prod0," +
+                        "t1.remainings_coors45 AS remainings_coors45," +
+                        "t1.remainings_art_comm1 AS remainings_art_comm1," +
+                        "t1.remainings_user_comm3 AS remainings_user_comm3," +
+                        "t1.superficial_leavers_cnt AS superficial_leavers_cnt," +
+                        "t1.substantive_leavers_cnt AS substantive_leavers_cnt," +
+                        "t1.wp_tenure AS wp_tenure," +
+                        "t1.avg_substantive_leaver_tenure AS avg_substantive_leaver_tenure," +
+                        "t1.avg_last_tcount_ns0_edits AS avg_last_tcount_ns0_edits," +
+                        "t1.avg_last_tcount_ns45_edits AS avg_last_tcount_ns45_edits," +
+                        "t1.project_prod0 AS project_prod0," +
+                        "t1.project_coor4 AS project_coor4," +
+                        "t1.project_coor5 AS project_coor5," +
+                        "t1.project_coors45 AS project_coors45," +
+                        "t1.project_art_comm1 AS project_art_comm1," +
+                        "t1.project_user_comm3 AS project_user_comm3," +
+                        "t1.pre_project_prod0 AS pre_project_prod0," +
+                        "t1.pre_project_coors45 AS pre_project_coors45," +
+                        "t1.delta_prod0 AS delta_prod0," +
+                        "t1.delta_coors45 AS delta_coors45," +
+                        "t2.creation_tcount AS creation_tcount," +
+                        "FROM " + util.tableName(defaultDataset, "script_results_wp_ivs_cvs_group_abv0_dltDVs_committed_prod_newcomers_leavers"+timeIntervalUnit+"edit"+monthlyEditingThreshold, "t1") +
+                        "INNER JOIN " + util.tableName(defaultDataset, "validproject_creation_date_tcount"+timeIntervalUnit, "t2") +
+                        "ON t1.nwikiproject = t2.nwikiproject " +
+                        "ORDER BY nwikiproject, tcount",
+                TableId.of(defaultDataset, "script_results_final"+timeIntervalUnit+"edit"+monthlyEditingThreshold));
+
+
+
+    }
+
+    private void analysisOnEditorActivityAfterJoining() throws Exception {
+
+        /**
+         * SELECT t1.user_id AS user_id,
+         t1.nwikiproject AS nwikiproject,
+         t2.count AS time_interval,
+         COUNT(*) AS productivity,
+         FROM [bowen_user_dropouts.rev_ns0_valid_user_wikiproject] t1
+         INNER JOIN [bowen_user_dropouts.lng_rev_intervals_0145_3months] t2
+         ON t1.user_id = t2.user_id AND t1.nwikiproject = t2.nwikiproject
+         WHERE t1.timestamp > t2.start_ts AND t1.timestamp < t2.end_ts
+         GROUP BY user_id, nwikiproject, time_interval
+         ORDER BY user_id, nwikiproject, time_interval
+
+         */
+
+        //
+        // remove other wikiprojects
+
+        // valid projects: bowen_quitting_script.wp_valid_tcounts
+        // bowen_user_dropouts.lng_rev_intervals_0145_3months
+
+        util.runQuery("SElECT t1.user_id AS user_id," +
+                        "t1.nwikiproject AS nwikiproject," +
+                        "t1.time_interval AS tcount," +
+                        "t1.productivity AS productivity," +
+                        "FROM " + util.tableName("bowen_user_dropouts", "lng_revs_amount_productivity_3months_intervals_seg", "t1") +
+                        "INNER JOIN " + util.tableName("bowen_quitting_script", "wp_valid_tcounts", "t2") +
+                        "ON t1.nwikiproject = t2.nwikiproject",
+                TableId.of(defaultDataset, "script_lng_revs_amount_productivity_3months_intervals_seg"));
+    }
+
+    private void allWikipediaUserSurvivialAnalysis() throws Exception {
+//        SELECT rev_user_id,
+//        MAX( rev_timestamp ) AS last_edit,
+//        MIN(rev_timestamp) AS first_edit,
+//        FROM [robert-kraut-1234:bowen_user_dropouts.revs]
+//        GROUP BY rev_user_id
+
+//        util.runQuery("SELECT rev_user_id AS user_id," +
+//                        "MAX(rev_timestamp) AS last_edit_ts," +
+//                        "MIN(rev_timestamp) AS first_edit_ts," +
+////                        "(last_edit_ts - first_edit_ts) / (3600*24) AS staying_in_days)," +
+//                        "FROM " + util.tableName("bowen_user_dropouts", "revs") +
+//                        "WHERE PARSE_IP(rev_user_text) IS NULL " +
+//                        "GROUP BY user_id ",
+//                TableId.of(defaultDataset, "all_user_last_first_edits"));
+
+//        util.runQuery("SELECT user_id," +
+//                        "(last_edit_ts - first_edit_ts) / (3600*24) AS staying_in_days," +
+//                        "FROM " + util.tableName(defaultDataset, "all_user_last_first_edits"),
+//                TableId.of(defaultDataset, "all_user_last_first_edits_in_days"));
+//
+//        util.runQuery("SELECT COUNT(UNIQUE(user_id))," +
+//                        "FROM " + util.tableName(defaultDataset, "all_user_last_first_edits"),
+//                TableId.of(defaultDataset, "all_users_number"));
+
+
+//        util.runQuery("SELECT COUNT(UNIQUE(user_id))," +
+//                        "FROM " + util.tableName(defaultDataset, "all_user_last_first_edits_in_days") +
+//                        "WHERE staying_in_days < 7",
+//                TableId.of(defaultDataset, "all_users_number7"));
+//
+//        util.runQuery("SELECT COUNT(UNIQUE(user_id))," +
+//                        "FROM " + util.tableName(defaultDataset, "all_user_last_first_edits_in_days") +
+//                        "WHERE staying_in_days < 30",
+//                TableId.of(defaultDataset, "all_users_number30"));
+
+        // find a random day for tht week (time window)
+        // 2011-02-20: 1298160000 +
+        // 2008-12-01: 1228089600
+        util.runQuery("SELECT COUNT(UNIQUE(user_id)) AS total_new_users," +
+                        "FROM " + util.tableName(defaultDataset, "all_user_last_first_edits") +
+                        "WHERE first_edit_ts >= 1228089600 AND first_edit_ts < 1228089600 + 3600*24*30",
+                TableId.of(defaultDataset, "total_new_users_per_week"));
+
+        util.runQuery("SELECT COUNT(UNIQUE(user_id)) AS total_leaving_users," +
+                        "FROM " + util.tableName(defaultDataset, "all_user_last_first_edits") +
+                        "WHERE last_edit_ts >= 1228089600 AND last_edit_ts < 1228089600 + 3600*24*30",
+                TableId.of(defaultDataset, "total_leaving_users_per_week"));
+
+        // newcomers: 62763; leavers: 64012
+
+        // compute all the newcomers,
+
+        // compute leavers
+
+
+
+    }
 
     /**
      *  Create the newbies of wikiprojects
