@@ -174,8 +174,8 @@ public class WikiProjectTurnover {
 //                            "[robert-kraut-1234:ExperiencedNewcomers.wikiproject_revs_0145_valid_users_valid_proj], " +
 //                            "[robert-kraut-1234:ExperiencedNewcomers.wp_revs_3_valid_users_valid_proj]",
 //                TableId.of("ExperiencedNewcomers", "revs_01345_valid_users_valid_proj"));
-
-        // select a subset of users
+//
+//        // select a subset of users
 //        util.runQuery("SELECT UNIQUE(user_id) AS user_id," +
 //                        "FROM " + util.tableName("ExperiencedNewcomers", "revs_01345_valid_users_valid_proj"),
 //                TableId.of("ExperiencedNewcomers", "unique_users"));
@@ -186,41 +186,68 @@ public class WikiProjectTurnover {
 //                            "ORDER BY rand " +
 //                            "LIMIT 1000",
 //                TableId.of("ExperiencedNewcomers", "random_subset_users1000"));
+//
+//
+//        util.runQuery("SELECT t1.user_id AS user_id," +
+//                        "t1.nwikiproject AS nwikiproject," +
+//                        "t1.wikiproject AS wikiproject," +
+//                        "t1.timestamp AS timestamp," +
+//                        "t1.ns AS ns," +
+//                        "FROM " + util.tableName("ExperiencedNewcomers", "revs_01345_valid_users_valid_proj", "t1") +
+//                        "INNER JOIN " + util.tableName("ExperiencedNewcomers", "random_subset_users1000", "t2") +
+//                        "ON t1.user_id = t2.user_id",
+//                TableId.of("ExperiencedNewcomers", "revs_01345_valid_users_valid_proj_sampled_users"));
+//
+//        util.runQuery("select * from " +
+//                        "[robert-kraut-1234:ExperiencedNewcomers.revs_01345_valid_users_valid_proj_sampled_users] " +
+//                        " order by user_id, nwikiproject, timestamp",
+//                TableId.of("ExperiencedNewcomers", "revs_01345_valid_users_valid_proj_ordered"));
+//
+//        util.runQuery("select * from (select *, ROW_NUMBER() OVER (PARTITION BY user_id, nwikiproject " +
+//                "ORDER BY user_id, nwikiproject, timestamp) as pos FROM " +
+////         "[robert-kraut-1234:ExperiencedNewcomers.revs_01345_valid_users_valid_proj] " +
+//                        "[robert-kraut-1234:ExperiencedNewcomers.revs_01345_valid_users_valid_proj_ordered] " +
+//                "order by user_id, nwikiproject, timestamp) where pos <= 10",
+//                TableId.of("ExperiencedNewcomers", "revs_01345_valid_users_valid_proj_first10edits"));
 
 
-        util.runQuery("SELECT t1.user_id AS user_id," +
-                        "t1.nwikiproject AS nwikiproject," +
-                        "t1.wikiproject AS wikiproject," +
-                        "t1.timestamp AS timestamp," +
-                        "t1.ns AS ns," +
-                        "FROM " + util.tableName("ExperiencedNewcomers", "revs_01345_valid_users_valid_proj", "t1") +
-                        "INNER JOIN " + util.tableName("ExperiencedNewcomers", "random_subset_users1000", "t2") +
-                        "ON t1.user_id = t2.user_id",
-                TableId.of("ExperiencedNewcomers", "revs_01345_valid_users_valid_proj_sampled_users"));
 
-        util.runQuery("select * from " +
-                        "[robert-kraut-1234:ExperiencedNewcomers.revs_01345_valid_users_valid_proj_sampled_users] " +
-                        " order by user_id, nwikiproject, timestamp",
-                TableId.of("ExperiencedNewcomers", "revs_01345_valid_users_valid_proj_ordered"));
-
-        util.runQuery("select * from (select *, ROW_NUMBER() OVER (PARTITION BY user_id, nwikiproject " +
-                "ORDER BY user_id, nwikiproject, timestamp) as pos FROM " +
-//         "[robert-kraut-1234:ExperiencedNewcomers.revs_01345_valid_users_valid_proj] " +
-                        "[robert-kraut-1234:ExperiencedNewcomers.revs_01345_valid_users_valid_proj_ordered] " +
-                "order by user_id, nwikiproject, timestamp) where pos <= 10",
-                TableId.of("ExperiencedNewcomers", "revs_01345_valid_users_valid_proj_first10edits"));
-
-
-
-        util.runQuery("select t1.user_id as user_id, t1.nwikiproject as nwikiproject, " +
-                "t1.wikiproject as wikiproject, t2.article_name, t1.timestamp as timestamp, " +
-                "FORMAT_UTC_USEC(t1.timestamp) as " +
-                "hr_timestamp FROM " +
+        util.runQuery("select t1.user_id as user_id, " +
+                        "t1.nwikiproject as nwikiproject, " +
+                        "t1.wikiproject as wikiproject, " +
+                        "t2.article_name AS article_name, " +
+                        "t1.timestamp as timestamp, " +
+                        "FORMAT_UTC_USEC(t1.timestamp*1000000) as hr_timestamp," +
+                        "t1.ns AS ns, FROM " +
         util.tableName("ExperiencedNewcomers", "revs_01345_valid_users_valid_proj_first10edits", "t1")
         + " inner join " +
         util.tableName("ExperiencedNewcomers", "revs_articlenames_subset_01345", "t2") +
         " on t1.user_id = t2.user_id and t1.timestamp = t2.rev_timestamp",
-        TableId.of("ExperiencedNewcomers", "top5edits_articlenames_hr_timestamps"));
+        TableId.of("ExperiencedNewcomers", "top10edits_articlenames_hr_timestamps"));
+
+
+        // create project joining time to find edits after joining
+        util.runQuery("SELECT user_id AS user_id," +
+                        "nwikiproject AS nwikiproject," +
+                        "MIN(first_edit) AS joining_time," +
+                        "FROM " + util.tableName(defaultDataset, "script_user_wp_active_start_end_revs45_partial" + timeIntervalUnit) +
+                        "GROUP BY user_id, nwikiproject",
+                TableId.of(defaultDataset, "editor_project_joning_ts"));
+
+
+        // Add in namespace ... / recheck the
+        util.runQuery("SELECT t1.user_id AS user_id," +
+                            "t1.nwikiproject AS nwikiproject," +
+                            "t1.wikiproject AS wikiproject," +
+                            "t1.article_name AS article_name," +
+                            "t1.timestamp AS timestamp," +
+                            "t1.hr_timestamp AS hr_timestamp," +
+                            "t1.ns AS ns," +
+                            "FROM " + util.tableName("ExperiencedNewcomers", "top10edits_articlenames_hr_timestamps", "t1") +
+                            "INNER JOIN " + util.tableName(defaultDataset, "editor_project_joning_ts", "t2") +
+                            "ON t1.user_id = t2.user_id AND t1.nwikiproject = t2.nwikiproject " +
+                            "WHERE t1.timestamp >= t2.joining_time",
+                TableId.of("ExperiencedNewcomers", "top10edits_articlenames_hr_timestamps_afterjoining"));
     }
 
 
